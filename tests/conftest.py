@@ -6,6 +6,7 @@ import os
 import tempfile
 
 import pytest
+import pytest_asyncio
 
 from src.storage.db import Database
 
@@ -18,7 +19,7 @@ def event_loop():
     loop.close()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def db(tmp_path):
     """Provide an in-memory Database instance with schema initialized."""
     db_path = str(tmp_path / "test.db")
