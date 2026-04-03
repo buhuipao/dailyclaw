@@ -6,15 +6,16 @@ import re
 from datetime import datetime, timedelta
 
 from telegram import Update
-from telegram.ext import ContextTypes
+from telegram.ext import ContextTypes, ConversationHandler
 
+from ..journal.engine import JournalEngine
 from ..llm.client import LLMClient
 from ..storage.db import Database
-from ..storage.models import CATEGORY_LABELS, JournalCategory
+from ..storage.models import CATEGORY_LABELS
 
 logger = logging.getLogger(__name__)
 
-MAX_JOURNAL_CONTEXT_MESSAGES = 20
+JOURNAL_ANSWERING = 0
 
 
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -49,6 +50,7 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "🌙 /journal → 开始曾国藩式反思\n"
         "✅ /checkin ielts 听力30分钟 → 打卡\n"
         "📊 /plans → 查看计划完成情况\n"
+        "🚫 /cancel → 取消进行中的反思\n"
     )
 
 
@@ -86,10 +88,10 @@ async def cmd_today(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("\n".join(lines))
 
 
-async def cmd_journal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Start the evening reflection journal."""
+async def cmd_journal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Start the evening reflection journal. Entry point for ConversationHandler."""
     if not update.effective_user or not update.message:
-        return
+        return ConversationHandler.END
     db: Database = context.bot_data["db"]
     llm: LLMClient = context.bot_data["llm"]
     tz = context.bot_data["tz"]
@@ -97,50 +99,46 @@ async def cmd_journal(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
     today = datetime.now(tz).strftime("%Y-%m-%d")
 
     messages = await db.get_today_messages(user_id, today)
-    existing_journal = await db.get_journal_entries(user_id, today)
+    today_texts = [m.content for m in messages[-20:]]
 
-    # Build context from today's messages (capped to prevent prompt inflation)
-    recent = messages[-MAX_JOURNAL_CONTEXT_MESSAGES:]
-    msg_context = ""
-    if recent:
-        msg_context = "\n".join(f"- {m.content[:100]}" for m in recent)
-
-    existing_context = ""
-    if existing_journal:
-        existing_context = "\n".join(
-            f"- [{CATEGORY_LABELS.get(e.category, '')}] {e.content[:100]}"
-            for e in existing_journal
-        )
-
-    # System prompt is static; user content goes in user role to prevent injection
-    system_prompt = (
-        "你是 DailyClaw，用户的每日反思助手。\n"
-        "请用温暖、简洁的方式引导用户完成曾国藩式每日四省：\n"
-        "1. 晨起：今天几点起？精神状态如何？\n"
-        "2. 所阅：今天读了/看了/听了什么？有什么收获？\n"
-        "3. 待人接物：今天和谁有印象深刻的交流？\n"
-        "4. 反省：今天有什么做得不够好的？明天如何改进？\n\n"
-        "如果用户今天已经有记录，结合这些记录来引导，不要重复问已有的内容。\n"
-        "用中文回复，语气温暖但不啰嗦。"
+    engine = JournalEngine(
+        db=db, llm=llm, user_id=user_id, date=today, today_messages=today_texts,
     )
+    context.user_data["journal_engine"] = engine
 
-    user_content = f"今天是 {today}，开始今天的反思。"
-    if msg_context:
-        user_content += f"\n\n今天的记录：\n{msg_context}"
-    if existing_context:
-        user_content += f"\n\n已有的日记条目：\n{existing_context}"
+    prompt = await engine.start()
+    await update.message.reply_text(f"🌙 {prompt}")
+    return JOURNAL_ANSWERING
 
-    response = await llm.chat(
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content},
-        ]
-    )
 
-    context.user_data["journal_mode"] = True
-    context.user_data["journal_date"] = today
+async def journal_answer(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Handle user's answer during journal session."""
+    if not update.effective_user or not update.message:
+        return ConversationHandler.END
 
-    await update.message.reply_text(f"🌙 {response}")
+    engine: JournalEngine = context.user_data.get("journal_engine")
+    if engine is None:
+        await update.message.reply_text("没有进行中的反思。用 /journal 开始。")
+        return ConversationHandler.END
+
+    response = await engine.answer(update.message.text)
+
+    if engine.is_complete:
+        context.user_data.pop("journal_engine", None)
+        await update.message.reply_text(f"✨ {response}")
+        return ConversationHandler.END
+
+    await update.message.reply_text(response)
+    return JOURNAL_ANSWERING
+
+
+async def journal_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """Cancel the journal session."""
+    if not update.message:
+        return ConversationHandler.END
+    context.user_data.pop("journal_engine", None)
+    await update.message.reply_text("反思已取消。随时可以用 /journal 重新开始。")
+    return ConversationHandler.END
 
 
 async def cmd_checkin(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

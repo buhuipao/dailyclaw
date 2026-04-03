@@ -8,11 +8,22 @@ from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
+    ConversationHandler,
     MessageHandler,
     filters,
 )
 
-from .bot.commands import cmd_checkin, cmd_help, cmd_journal, cmd_plans, cmd_start, cmd_today
+from .bot.commands import (
+    JOURNAL_ANSWERING,
+    cmd_checkin,
+    cmd_help,
+    cmd_journal,
+    cmd_plans,
+    cmd_start,
+    cmd_today,
+    journal_answer,
+    journal_cancel,
+)
 from .bot.handlers import handle_photo, handle_text, handle_voice
 from .config import load_config
 from .llm.client import LLMClient
@@ -90,7 +101,16 @@ def main() -> None:
     app.add_handler(CommandHandler("start", cmd_start, filters=auth))
     app.add_handler(CommandHandler("help", cmd_help, filters=auth))
     app.add_handler(CommandHandler("today", cmd_today, filters=auth))
-    app.add_handler(CommandHandler("journal", cmd_journal, filters=auth))
+    journal_conv = ConversationHandler(
+        entry_points=[CommandHandler("journal", cmd_journal, filters=auth)],
+        states={
+            JOURNAL_ANSWERING: [
+                MessageHandler(filters.TEXT & ~filters.COMMAND & auth, journal_answer),
+            ],
+        },
+        fallbacks=[CommandHandler("cancel", journal_cancel, filters=auth)],
+    )
+    app.add_handler(journal_conv)
     app.add_handler(CommandHandler("checkin", cmd_checkin, filters=auth))
     app.add_handler(CommandHandler("plans", cmd_plans, filters=auth))
 
