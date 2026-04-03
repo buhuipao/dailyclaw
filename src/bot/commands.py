@@ -9,7 +9,9 @@ from telegram import Update
 from telegram.ext import ContextTypes, ConversationHandler
 
 from ..journal.engine import JournalEngine
+from ..journal.summary import generate_summary
 from ..llm.client import LLMClient
+from ..sharing.generator import generate_share_page
 from ..storage.db import Database
 from ..storage.models import CATEGORY_LABELS
 
@@ -50,6 +52,8 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         "🌙 /journal → 开始曾国藩式反思\n"
         "✅ /checkin ielts 听力30分钟 → 打卡\n"
         "📊 /plans → 查看计划完成情况\n"
+        "📊 /summary [week|month] → 生成周/月总结\n"
+        "📄 /share [日期] → 生成分享页\n"
         "🚫 /cancel → 取消进行中的反思\n"
     )
 
@@ -233,3 +237,57 @@ async def cmd_plans(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         lines.append(f"{name} [{tag}]: {bar} {unique_days}/{expected}")
 
     await update.message.reply_text("\n".join(lines))
+
+
+async def cmd_summary(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Generate a summary. Usage: /summary [week|month]"""
+    if not update.effective_user or not update.message:
+        return
+    db: Database = context.bot_data["db"]
+    llm: LLMClient = context.bot_data["llm"]
+    tz = context.bot_data["tz"]
+    user_id = update.effective_user.id
+    now = datetime.now(tz)
+
+    args = context.args or []
+    period_type = args[0] if args else "week"
+
+    if period_type == "week":
+        start = (now - timedelta(days=now.weekday())).strftime("%Y-%m-%d")
+        end = now.strftime("%Y-%m-%d")
+    elif period_type == "month":
+        start = now.strftime("%Y-%m-01")
+        end = now.strftime("%Y-%m-%d")
+    else:
+        await update.message.reply_text("用法: /summary [week|month]")
+        return
+
+    await update.message.reply_text(f"正在生成{period_type}总结...")
+    result = await generate_summary(
+        db=db, llm=llm, user_id=user_id,
+        period_type=period_type, start_date=start, end_date=end,
+    )
+    await update.message.reply_text(f"📊 {result}")
+
+
+async def cmd_share(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Generate a sharing page for today. Usage: /share [YYYY-MM-DD]"""
+    if not update.effective_user or not update.message:
+        return
+    db: Database = context.bot_data["db"]
+    config = context.bot_data["config"]
+    tz = context.bot_data["tz"]
+    user_id = update.effective_user.id
+
+    args = context.args or []
+    date = args[0] if args else datetime.now(tz).strftime("%Y-%m-%d")
+
+    sharing_config = config.get("sharing", {})
+    output_dir = sharing_config.get("output_dir", "./data/site")
+    site_title = sharing_config.get("site_title", "My Daily Claw")
+
+    path = await generate_share_page(
+        db=db, user_id=user_id, date=date,
+        output_dir=output_dir, site_title=site_title,
+    )
+    await update.message.reply_text(f"📄 分享页已生成: {path}\n(部署到 web 服务器后可通过链接分享)")

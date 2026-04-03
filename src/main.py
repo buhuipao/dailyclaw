@@ -19,14 +19,18 @@ from .bot.commands import (
     cmd_help,
     cmd_journal,
     cmd_plans,
+    cmd_share,
     cmd_start,
+    cmd_summary,
     cmd_today,
     journal_answer,
     journal_cancel,
 )
 from .bot.handlers import handle_photo, handle_text, handle_voice
 from .config import load_config
+from .journal.scheduler import schedule_evening_journal, schedule_weekly_summary
 from .llm.client import LLMClient
+from .planner.scheduler import schedule_plan_reminders
 from .storage.db import Database
 
 logging.basicConfig(
@@ -53,6 +57,22 @@ async def post_init(application) -> None:
     db = application.bot_data["db"]
     await db.connect()
     logger.info("Database connected")
+
+    config = application.bot_data["config"]
+    tz = application.bot_data["tz"]
+
+    # Schedule evening journal prompt
+    journal_time = config.get("journal", {}).get("evening_prompt_time", "21:30")
+    h, m = (int(x) for x in journal_time.split(":"))
+    schedule_evening_journal(application, h, m, tz)
+
+    # Schedule plan reminders
+    plans = config.get("plans", [])
+    if plans:
+        schedule_plan_reminders(application, plans, tz)
+
+    # Schedule weekly summary
+    schedule_weekly_summary(application, tz)
 
 
 async def post_shutdown(application) -> None:
@@ -113,6 +133,8 @@ def main() -> None:
     app.add_handler(journal_conv)
     app.add_handler(CommandHandler("checkin", cmd_checkin, filters=auth))
     app.add_handler(CommandHandler("plans", cmd_plans, filters=auth))
+    app.add_handler(CommandHandler("summary", cmd_summary, filters=auth))
+    app.add_handler(CommandHandler("share", cmd_share, filters=auth))
 
     # Register message handlers (with auth)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & auth, handle_text))
