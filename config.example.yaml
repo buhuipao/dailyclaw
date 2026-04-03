@@ -1,0 +1,29 @@
+telegram:
+  token: "${TELEGRAM_BOT_TOKEN}"
+  allowed_user_ids:            # 你的 Telegram user ID（发 /start 给 @userinfobot 获取）
+    - 123456789
+
+llm:
+  base_url: "https://api.openai.com/v1"   # 或自托管地址，如 http://localhost:11434/v1
+  api_key: "${LLM_API_KEY}"
+  model: "gpt-4o-mini"                     # 或 claude-sonnet-4-6, deepseek-chat 等
+
+timezone: "Asia/Shanghai"
+
+journal:
+  evening_prompt_time: "21:30"    # 每晚引导反思的时间
+  template: "zeng_guofan"         # 曾国藩式
+
+plans:
+  - name: "雅思学习"
+    schedule: "daily"
+    remind_time: "20:00"          # 如果到这个时间还没打卡，发提醒
+    tag: "ielts"
+  - name: "锻炼"
+    schedule: "mon,wed,fri"
+    remind_time: "19:00"
+    tag: "workout"
+
+sharing:
+  output_dir: "./data/site"
+  site_title: "My Daily Claw"

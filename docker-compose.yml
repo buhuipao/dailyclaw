@@ -1,0 +1,10 @@
+services:
+  dailyclaw:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data
+    environment:
+      - CONFIG_PATH=/app/config.yaml

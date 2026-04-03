@@ -1,0 +1,8 @@
+.env
+config.yaml
+data/
+__pycache__/
+*.pyc
+.venv/
+.mypy_cache/
+.ruff_cache/
