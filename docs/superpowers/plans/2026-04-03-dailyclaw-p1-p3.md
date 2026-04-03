@@ -1,6 +1,6 @@
 # DailyClaw Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
 
 **Goal:** Build DailyClaw — a self-hosted Telegram bot for structured daily journaling (曾国藩式), plan accountability with passive reminders, and a static sharing page. Deployed via Docker on Ubuntu with configurable LLM.
 
@@ -135,7 +135,7 @@
 - Create: `tests/__init__.py`
 - Create: `tests/conftest.py`
 
-- [ ] **Step 1: Create shared test fixtures**
+- [x] **Step 1: Create shared test fixtures**
 
 ```python
 # tests/conftest.py
@@ -206,12 +206,12 @@ def fake_llm():
 # tests/__init__.py
 ```
 
-- [ ] **Step 2: Verify fixtures load**
+- [x] **Step 2: Verify fixtures load**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && pip install -q pytest pytest-asyncio && python -m pytest tests/ --collect-only`
 Expected: `no tests ran` (collected 0 items, no errors)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add tests/__init__.py tests/conftest.py
@@ -226,7 +226,7 @@ git commit -m "test: add shared pytest fixtures (in-memory DB, FakeLLM)"
 - Create: `src/journal/engine.py`
 - Create: `tests/test_journal_engine.py`
 
-- [ ] **Step 1: Write failing tests for JournalEngine**
+- [x] **Step 1: Write failing tests for JournalEngine**
 
 ```python
 # tests/test_journal_engine.py
@@ -318,12 +318,12 @@ async def test_skip_category(db, fake_llm):
     assert engine.current_category == JournalCategory.READING
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -m pytest tests/test_journal_engine.py -v`
 Expected: FAIL with `ModuleNotFoundError: No module named 'src.journal.engine'` (or `cannot import name 'JournalEngine'`)
 
-- [ ] **Step 3: Implement JournalEngine**
+- [x] **Step 3: Implement JournalEngine**
 
 ```python
 # src/journal/engine.py
@@ -485,12 +485,12 @@ class JournalEngine:
         )
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -m pytest tests/test_journal_engine.py -v`
 Expected: 4 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/journal/engine.py tests/test_journal_engine.py
@@ -505,7 +505,7 @@ git commit -m "feat(P1): add JournalEngine with multi-turn reflection flow"
 - Modify: `src/bot/commands.py` — replace `cmd_journal` with ConversationHandler callbacks
 - Modify: `src/main.py` — register ConversationHandler instead of plain CommandHandler for `/journal`
 
-- [ ] **Step 1: Rewrite journal commands in `src/bot/commands.py`**
+- [x] **Step 1: Rewrite journal commands in `src/bot/commands.py`**
 
 Replace the existing `cmd_journal` function (lines 89-143) with three callbacks that work with Telegram's `ConversationHandler`:
 
@@ -575,7 +575,7 @@ async def journal_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     return ConversationHandler.END
 ```
 
-- [ ] **Step 2: Update `src/main.py` to use ConversationHandler**
+- [x] **Step 2: Update `src/main.py` to use ConversationHandler**
 
 Replace the journal command registration (line 93) and add the ConversationHandler. In `src/main.py`, add to imports:
 
@@ -603,21 +603,21 @@ With:
     app.add_handler(journal_conv)
 ```
 
-- [ ] **Step 3: Update `/help` text to mention `/cancel`**
+- [x] **Step 3: Update `/help` text to mention `/cancel`**
 
 In `cmd_help` (line 43-52 of `src/bot/commands.py`), add `🚫 /cancel → 取消进行中的反思\n` to the help text.
 
-- [ ] **Step 4: Run all tests**
+- [x] **Step 4: Run all tests**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -m pytest tests/ -v`
 Expected: All pass
 
-- [ ] **Step 5: Verify imports**
+- [x] **Step 5: Verify imports**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -c "from src.main import main; print('OK')"`
 Expected: `OK`
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/bot/commands.py src/main.py
@@ -632,7 +632,7 @@ git commit -m "feat(P1): wire journal ConversationHandler for multi-turn reflect
 - Create: `src/journal/scheduler.py`
 - Modify: `src/main.py` — call scheduler setup in `post_init`
 
-- [ ] **Step 1: Write the scheduler**
+- [x] **Step 1: Write the scheduler**
 
 ```python
 # src/journal/scheduler.py
@@ -673,7 +673,7 @@ def schedule_evening_journal(app: Application, hour: int, minute: int, tz) -> No
     logger.info("Scheduled evening journal at %02d:%02d %s", hour, minute, tz)
 ```
 
-- [ ] **Step 2: Wire scheduler in `src/main.py`**
+- [x] **Step 2: Wire scheduler in `src/main.py`**
 
 Add to imports:
 ```python
@@ -691,12 +691,12 @@ In `post_init`, after `logger.info("Database connected")`, add:
     schedule_evening_journal(application, h, m, tz)
 ```
 
-- [ ] **Step 3: Verify imports**
+- [x] **Step 3: Verify imports**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -c "from src.journal.scheduler import schedule_evening_journal; print('OK')"`
 Expected: `OK`
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/journal/scheduler.py src/main.py
@@ -713,7 +713,7 @@ git commit -m "feat(P1): schedule evening journal reminder via JobQueue"
 - Create: `src/planner/reminder.py`
 - Create: `tests/test_planner_reminder.py`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```python
 # tests/test_planner_reminder.py
@@ -746,12 +746,12 @@ async def test_needs_reminder_different_tag(db):
     assert result is True
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -m pytest tests/test_planner_reminder.py -v`
 Expected: FAIL with `ModuleNotFoundError`
 
-- [ ] **Step 3: Implement reminder logic**
+- [x] **Step 3: Implement reminder logic**
 
 ```python
 # src/planner/reminder.py
@@ -771,12 +771,12 @@ async def check_needs_reminder(db: Database, user_id: int, tag: str, date: str) 
     return len(checkins) == 0
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -m pytest tests/test_planner_reminder.py -v`
 Expected: 3 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/planner/reminder.py tests/test_planner_reminder.py
@@ -791,7 +791,7 @@ git commit -m "feat(P2): add check_needs_reminder for passive plan tracking"
 - Create: `src/planner/scheduler.py`
 - Modify: `src/main.py`
 
-- [ ] **Step 1: Implement plan scheduler**
+- [x] **Step 1: Implement plan scheduler**
 
 ```python
 # src/planner/scheduler.py
@@ -876,7 +876,7 @@ def schedule_plan_reminders(app: Application, plans: list[dict], tz) -> None:
         logger.info("Scheduled reminder for '%s' at %s (schedule: %s)", tag, remind_time_str, schedule)
 ```
 
-- [ ] **Step 2: Wire in `src/main.py`**
+- [x] **Step 2: Wire in `src/main.py`**
 
 Add to imports:
 ```python
@@ -891,17 +891,17 @@ In `post_init`, after the evening journal scheduling block, add:
         schedule_plan_reminders(application, plans, tz)
 ```
 
-- [ ] **Step 3: Verify imports**
+- [x] **Step 3: Verify imports**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -c "from src.planner.scheduler import schedule_plan_reminders; print('OK')"`
 Expected: `OK`
 
-- [ ] **Step 4: Run all tests**
+- [x] **Step 4: Run all tests**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -m pytest tests/ -v`
 Expected: All pass (7 total)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/planner/scheduler.py src/main.py
@@ -918,7 +918,7 @@ git commit -m "feat(P2): schedule passive plan reminders via JobQueue"
 - Create: `src/journal/summary.py`
 - Create: `tests/test_summary.py`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```python
 # tests/test_summary.py
@@ -965,12 +965,12 @@ async def test_generate_summary_no_entries(db, fake_llm):
     assert result  # should still return something
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -m pytest tests/test_summary.py -v`
 Expected: FAIL with `ModuleNotFoundError`
 
-- [ ] **Step 3: Implement summary generation**
+- [x] **Step 3: Implement summary generation**
 
 ```python
 # src/journal/summary.py
@@ -1053,12 +1053,12 @@ async def generate_summary(
     return response
 ```
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -m pytest tests/test_summary.py -v`
 Expected: 2 passed
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/journal/summary.py tests/test_summary.py
@@ -1074,7 +1074,7 @@ git commit -m "feat(P3): add LLM-powered periodic summary generation"
 - Create: `templates/share.html`
 - Create: `tests/test_sharing_generator.py`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 ```python
 # tests/test_sharing_generator.py
@@ -1123,12 +1123,12 @@ async def test_generate_share_page_empty(db, tmp_path):
     assert "暂无记录" in html
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -m pytest tests/test_sharing_generator.py -v`
 Expected: FAIL with `ModuleNotFoundError`
 
-- [ ] **Step 3: Create the Jinja2 template**
+- [x] **Step 3: Create the Jinja2 template**
 
 ```html
 <!-- templates/share.html -->
@@ -1206,7 +1206,7 @@ Expected: FAIL with `ModuleNotFoundError`
 </html>
 ```
 
-- [ ] **Step 4: Implement the generator**
+- [x] **Step 4: Implement the generator**
 
 ```python
 # src/sharing/generator.py
@@ -1265,12 +1265,12 @@ async def generate_share_page(
     return output_path
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -m pytest tests/test_sharing_generator.py -v`
 Expected: 2 passed
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/sharing/generator.py templates/share.html tests/test_sharing_generator.py
@@ -1285,7 +1285,7 @@ git commit -m "feat(P3): add static HTML sharing page generator with Jinja2"
 - Modify: `src/bot/commands.py` — add `cmd_summary` and `cmd_share`
 - Modify: `src/main.py` — register new commands
 
-- [ ] **Step 1: Add commands to `src/bot/commands.py`**
+- [x] **Step 1: Add commands to `src/bot/commands.py`**
 
 Add to imports:
 ```python
@@ -1350,7 +1350,7 @@ async def cmd_share(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(f"📄 分享页已生成: {path}\n(部署到 web 服务器后可通过链接分享)")
 ```
 
-- [ ] **Step 2: Register commands in `src/main.py`**
+- [x] **Step 2: Register commands in `src/main.py`**
 
 Add to imports:
 ```python
@@ -1363,7 +1363,7 @@ Add after the existing command registrations:
     app.add_handler(CommandHandler("share", cmd_share, filters=auth))
 ```
 
-- [ ] **Step 3: Update help text**
+- [x] **Step 3: Update help text**
 
 In `cmd_help`, add:
 ```
@@ -1371,17 +1371,17 @@ In `cmd_help`, add:
 "📄 /share [日期] → 生成分享页\n"
 ```
 
-- [ ] **Step 4: Verify imports**
+- [x] **Step 4: Verify imports**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -c "from src.main import main; print('OK')"`
 Expected: `OK`
 
-- [ ] **Step 5: Run all tests**
+- [x] **Step 5: Run all tests**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -m pytest tests/ -v`
 Expected: All pass (11 total)
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/bot/commands.py src/main.py
@@ -1396,7 +1396,7 @@ git commit -m "feat(P3): add /summary and /share commands"
 - Modify: `src/journal/scheduler.py`
 - Modify: `src/main.py`
 
-- [ ] **Step 1: Add weekly summary job to `src/journal/scheduler.py`**
+- [x] **Step 1: Add weekly summary job to `src/journal/scheduler.py`**
 
 Add at bottom of the file:
 
@@ -1446,7 +1446,7 @@ Also add missing imports at top of `src/journal/scheduler.py`:
 from datetime import datetime, time, timedelta
 ```
 
-- [ ] **Step 2: Wire in `src/main.py`**
+- [x] **Step 2: Wire in `src/main.py`**
 
 Update import:
 ```python
@@ -1458,17 +1458,17 @@ In `post_init`, after plan reminders:
     schedule_weekly_summary(application, tz)
 ```
 
-- [ ] **Step 3: Verify imports**
+- [x] **Step 3: Verify imports**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -c "from src.main import main; print('OK')"`
 Expected: `OK`
 
-- [ ] **Step 4: Run all tests**
+- [x] **Step 4: Run all tests**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -m pytest tests/ -v`
 Expected: All pass
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/journal/scheduler.py src/main.py
@@ -1481,22 +1481,22 @@ git commit -m "feat(P3): schedule automatic weekly summary on Sundays"
 
 **Files:** None (verification only)
 
-- [ ] **Step 1: Run full test suite**
+- [x] **Step 1: Run full test suite**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -m pytest tests/ -v --tb=short`
 Expected: 11 tests passed
 
-- [ ] **Step 2: Verify all imports cleanly**
+- [x] **Step 2: Verify all imports cleanly**
 
 Run: `cd /Users/chhua/github/dailyclaw && source .venv/bin/activate && python -c "from src.main import main; print('All modules loaded OK')"`
 Expected: `All modules loaded OK`
 
-- [ ] **Step 3: Verify Docker builds**
+- [x] **Step 3: Verify Docker builds**
 
 Run: `cd /Users/chhua/github/dailyclaw && docker build -t dailyclaw:latest .`
 Expected: Build succeeds
 
-- [ ] **Step 4: Final commit with all remaining files**
+- [x] **Step 4: Final commit with all remaining files**
 
 ```bash
 git add -A
