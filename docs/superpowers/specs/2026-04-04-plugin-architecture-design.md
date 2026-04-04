@@ -386,7 +386,11 @@ CREATE TABLE IF NOT EXISTS schema_versions (
 
   有误？发送 /recorder_del 42
   ```
-- **LLM 语义去重：** 新消息入库前取最近 N 条同用户消息，调用 LLM 判断语义重复，重复则跳过并告知用户
+- **LLM 语义去重（覆盖/合并策略）：** 新消息入库前取最近 N 条同用户消息，调用 LLM 判断语义是否重复。若重复：
+  - LLM 返回 `{"duplicate_of": <old_id>, "action": "merge"|"replace", "merged_content": "..."}`
+  - `replace`：用新内容覆盖旧记录，保留旧 ID
+  - `merge`：LLM 将新旧内容合并为一条，更新旧记录
+  - ACK 返回旧记录 ID：`已合并到 (#37)，内容已更新。有误？发送 /recorder_del 37`
 - **软删除：** `/recorder_del <id>` 设置 `deleted_at` 字段，展示命令过滤已删除记录
 
 ### 7.2 /help 自动生成
