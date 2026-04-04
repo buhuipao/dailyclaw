@@ -50,6 +50,36 @@ async def recorder_del(db: object, event: Event) -> str | None:
     return f"✅ 记录 #{record_id} 已删除。"
 
 
+async def recorder_today(db: object, tz: object, event: Event) -> str | None:
+    """Handle /recorder_today — show today's recorded messages."""
+    today = datetime.now(tz).strftime("%Y-%m-%d")
+    cursor = await db.conn.execute(
+        "SELECT id, msg_type, content, category, created_at FROM messages "
+        "WHERE user_id = ? AND date(created_at) = ? AND deleted_at IS NULL "
+        "ORDER BY created_at",
+        (event.user_id, today),
+    )
+    rows = await cursor.fetchall()
+
+    if not rows:
+        return f"📭 {today} 还没有记录。随时发消息给我吧！"
+
+    lines = [f"📅 {today} 今日记录 ({len(rows)} 条)\n"]
+    for row in rows[-15:]:  # show last 15
+        prefix = {"link": "🔗", "photo": "📷", "voice": "🎤", "video": "🎬"}.get(
+            row["msg_type"], "💬"
+        )
+        content = row["content"][:60]
+        if len(row["content"]) > 60:
+            content += "..."
+        lines.append(f"  {prefix} #{row['id']} {content}")
+
+    if len(rows) > 15:
+        lines.append(f"\n  ...还有 {len(rows) - 15} 条更早的记录")
+
+    return "\n".join(lines)
+
+
 async def _fetch_message(db: object, record_id: int) -> object | None:
     """Fetch a single message row by ID."""
     cursor = await db.conn.execute(
