@@ -170,7 +170,7 @@ async def _run(config: dict, tz: ZoneInfo) -> None:
     # 4. Telegram adapter
     token = config["telegram"]["token"]
     admin_ids: list[int] = config.get("telegram", {}).get("allowed_user_ids", [])
-    adapter = TelegramAdapter(token=token, admin_ids=admin_ids)
+    adapter = TelegramAdapter(token=token, admin_ids=admin_ids, db=db)
 
     # 5. Scheduler from adapter (build app first to get job_queue)
     app = adapter.build()

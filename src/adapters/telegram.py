@@ -157,9 +157,10 @@ class TelegramAdapter(BotAdapter):
         await adapter.start()
     """
 
-    def __init__(self, token: str, admin_ids: list[int]) -> None:
+    def __init__(self, token: str, admin_ids: list[int], db: Any = None) -> None:
         self._token = token
         self._auth = DynamicAuthFilter(admin_ids)
+        self._db = db  # Core Database for message queue
         self._commands: list[Command] = []
         self._handlers: list[MessageHandler] = []
         self._conversations: list[ConversationFlow] = []
@@ -267,6 +268,7 @@ class TelegramAdapter(BotAdapter):
 
     def _make_command_handler(self, cmd: Command):
         auth = self._auth
+        db = self._db
 
         async def _handler(update: Update, context: Any) -> None:
             event = _build_event(update, auth)
@@ -276,18 +278,19 @@ class TelegramAdapter(BotAdapter):
                 if update.effective_message:
                     await update.effective_message.reply_text("⛔ 无权限")
                 return
-            await _safe_dispatch(cmd.handler, event, update)
+            await _ack_and_dispatch(cmd.handler, event, update, db, f"/{cmd.name}")
 
         return _handler
 
     def _make_msg_handler(self, mh: MessageHandler):
         auth = self._auth
+        db = self._db
 
         async def _handler(update: Update, context: Any) -> None:
             event = _build_event(update, auth)
             if event is None:
                 return
-            await _safe_dispatch(mh.handler, event, update)
+            await _ack_and_dispatch(mh.handler, event, update, db, mh.msg_type.value)
 
         return _handler
 
@@ -330,24 +333,136 @@ class TelegramAdapter(BotAdapter):
 
 
 # ---------------------------------------------------------------------------
-# _safe_dispatch
+# ACK-first dispatch — enqueue, ACK, process async
 # ---------------------------------------------------------------------------
 
+_ACK_PROCESSING = "⏳ 收到，正在处理..."
 
-async def _safe_dispatch(
+
+async def _enqueue_to_db(db: Any, user_id: int, chat_id: int, msg_type: str, payload: str) -> int | None:
+    """Save to message_queue for reliability. Returns queue ID or None if db unavailable."""
+    if db is None:
+        return None
+    try:
+        cursor = await db.conn.execute(
+            "INSERT INTO message_queue (user_id, chat_id, msg_type, payload) VALUES (?, ?, ?, ?)",
+            (user_id, chat_id, msg_type, payload),
+        )
+        await db.conn.commit()
+        return cursor.lastrowid
+    except Exception:
+        logger.debug("Failed to enqueue message (table may not exist yet)", exc_info=True)
+        return None
+
+
+async def _mark_queue_done(db: Any, queue_id: int | None) -> None:
+    if db is None or queue_id is None:
+        return
+    try:
+        await db.conn.execute("UPDATE message_queue SET status = 'done' WHERE id = ?", (queue_id,))
+        await db.conn.commit()
+    except Exception:
+        pass
+
+
+async def _mark_queue_failed(db: Any, queue_id: int | None, error: str) -> None:
+    if db is None or queue_id is None:
+        return
+    try:
+        await db.conn.execute(
+            "UPDATE message_queue SET status = 'failed', attempts = attempts + 1, last_error = ? WHERE id = ?",
+            (error[:500], queue_id),
+        )
+        await db.conn.commit()
+    except Exception:
+        pass
+
+
+async def _ack_and_dispatch(
     handler: Callable[[Event], Any],
     event: Event,
     update: Update,
+    db: Any,
+    label: str,
 ) -> None:
-    """Call handler; if it returns a str, auto-reply. Catch all exceptions."""
+    """Enqueue → ACK → process in background → edit ACK with result.
+
+    If the handler returns None, it manages its own reply (e.g. recorder's
+    photo/voice handlers that do their own ACK + edit). If the handler
+    returns a str, the framework edits the ACK with that string.
+    """
+    import asyncio
+    import json
+
+    msg = update.effective_message
+    user_id = event.user_id
+    chat_id = event.chat_id
+
+    # 1. Enqueue for reliability
+    payload = json.dumps({"label": label, "text": event.text or ""}, ensure_ascii=False)
+    queue_id = await _enqueue_to_db(db, user_id, chat_id, label, payload)
+
+    # 2. Send ACK (best effort)
+    ack_msg_id: int | None = None
+    if msg:
+        try:
+            ack = await msg.reply_text(_ACK_PROCESSING)
+            ack_msg_id = ack.message_id
+        except Exception:
+            logger.debug("ACK send failed for user=%d", user_id)
+
+    # 3. Process in background
+    asyncio.create_task(
+        _bg_process(handler, event, update, db, queue_id, chat_id, ack_msg_id)
+    )
+
+
+async def _bg_process(
+    handler: Callable[[Event], Any],
+    event: Event,
+    update: Update,
+    db: Any,
+    queue_id: int | None,
+    chat_id: int,
+    ack_msg_id: int | None,
+) -> None:
+    """Background: run handler, edit ACK with result, mark queue done/failed."""
+    bot = update.get_bot()
     try:
         result = await handler(event)
-        if isinstance(result, str) and update.effective_message:
-            await update.effective_message.reply_text(result)
-    except Exception:
-        logger.exception("Handler raised an exception for event user_id=%d", event.user_id)
-        if update.effective_message:
+        await _mark_queue_done(db, queue_id)
+    except Exception as exc:
+        await _mark_queue_failed(db, queue_id, str(exc))
+        logger.exception("Handler failed for user=%d", event.user_id)
+        # Edit ACK to show retry message
+        if ack_msg_id:
             try:
-                await update.effective_message.reply_text("⚠️ 处理失败，请稍后再试。")
+                await bot.edit_message_text(
+                    chat_id=chat_id, message_id=ack_msg_id,
+                    text="⏳ 处理暂时失败，稍后会自动重试。",
+                )
             except Exception:
                 pass
+        return
+
+    # Handler returned a string → edit ACK with the result
+    if isinstance(result, str):
+        if ack_msg_id:
+            try:
+                await bot.edit_message_text(
+                    chat_id=chat_id, message_id=ack_msg_id, text=result,
+                )
+                return
+            except Exception:
+                pass
+        # Fallback: send new message
+        try:
+            await bot.send_message(chat_id=chat_id, text=result)
+        except Exception:
+            logger.warning("Failed to send reply to chat=%d", chat_id)
+    elif ack_msg_id:
+        # Handler returned None (managed its own reply) — delete the framework ACK
+        try:
+            await bot.delete_message(chat_id=chat_id, message_id=ack_msg_id)
+        except Exception:
+            pass

@@ -10,11 +10,10 @@ import pytest_asyncio
 from src.core.db import Database, MigrationRunner
 from src.core.bot import Event
 
-# Path to the recorder migrations directory
-_MIGRATIONS_DIR = str(
-    Path(__file__).parent.parent.parent
-    / "src" / "plugins" / "recorder" / "migrations"
-)
+# Migration directories
+_SRC_ROOT = Path(__file__).parent.parent.parent / "src"
+_RECORDER_MIGRATIONS = str(_SRC_ROOT / "plugins" / "recorder" / "migrations")
+_CORE_MIGRATIONS = str(_SRC_ROOT / "core" / "migrations")
 
 
 # ---------------------------------------------------------------------------
@@ -23,12 +22,13 @@ _MIGRATIONS_DIR = str(
 
 @pytest_asyncio.fixture
 async def recorder_db(tmp_path):
-    """In-memory Database with recorder migrations applied."""
+    """In-memory Database with core + recorder migrations applied."""
     db_path = str(tmp_path / "recorder_test.db")
     db = Database(db_path=db_path)
     await db.connect()
     runner = MigrationRunner(db)
-    await runner.run("recorder", _MIGRATIONS_DIR)
+    await runner.run("core", _CORE_MIGRATIONS)
+    await runner.run("recorder", _RECORDER_MIGRATIONS)
     yield db
     await db.close()
 

@@ -67,12 +67,21 @@ class FakeScheduler:
 # Shared fixture
 # ---------------------------------------------------------------------------
 
+CORE_MIGRATIONS = str(Path(__file__).resolve().parent.parent / "src" / "core" / "migrations")
+
+
 @pytest_asyncio.fixture
 async def registry_with_plugins(tmp_path):
     """Return (registry, plugins) after full discovery from src/plugins/."""
+    from src.core.db import MigrationRunner
+
     db_path = str(tmp_path / "integration.db")
     db = Database(db_path=db_path)
     await db.connect()
+
+    # Run core migrations first (allowed_users, message_queue)
+    runner = MigrationRunner(db)
+    await runner.run("core", CORE_MIGRATIONS)
 
     config = {
         "plugins": {
@@ -127,6 +136,7 @@ async def test_all_commands_registered(registry_with_plugins):
             all_commands.add(cmd.name)
 
     expected = {
+        "recorder_today",
         "recorder_del",
         "journal_start",
         "journal_today",

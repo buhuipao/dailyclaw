@@ -1,10 +1,13 @@
-"""Retry job for failed queued messages in the recorder plugin."""
+"""Retry job for failed queued messages.
+
+The framework-level message_queue stores all failed messages. This job
+picks them up and re-dispatches. Text messages get full replay (classify
++ save). Media messages get a placeholder if the file URL has expired.
+"""
 from __future__ import annotations
 
 import json
 import logging
-
-from .handlers import _insert_message, _mark_done, _mark_failed, _process_text
 
 logger = logging.getLogger(__name__)
 
@@ -12,15 +15,9 @@ MAX_RETRY_ATTEMPTS = 10
 
 
 def make_retry_callback(ctx: object):
-    """Return an async callback suitable for use with scheduler.run_repeating."""
+    """Return an async callback for scheduler.run_repeating."""
 
     async def retry_failed_messages() -> None:
-        """Pick up failed messages and retry processing.
-
-        Text messages are fully replayed (classify + save).
-        Media messages save a placeholder to avoid data loss if the
-        Telegram file download URL has expired.
-        """
         db = ctx.db
         llm = ctx.llm
         bot = ctx.bot
@@ -32,25 +29,10 @@ def make_retry_callback(ctx: object):
         logger.info("Retrying %d failed messages", len(pending))
 
         for msg in pending:
-            payload = json.loads(msg["payload"])
             try:
-                if msg["msg_type"] == "text":
-                    reply = await _process_text(db, llm, msg["user_id"], payload["text"])
-                    await _mark_done(db, msg["id"])
-                    await bot.send_message(
-                        msg["chat_id"],
-                        f"✅ 之前失败的消息已处理完成：\n{reply}",
-                    )
-                else:
-                    await _retry_media_fallback(db, msg, payload)
-                    await _mark_done(db, msg["id"])
-                    await bot.send_message(
-                        msg["chat_id"],
-                        f"✅ 之前失败的{_type_label(msg['msg_type'])}已补录。",
-                    )
-
+                await _retry_one(db, llm, bot, msg)
+                await _mark_done(db, msg["id"])
                 logger.info("Retry succeeded for queue id=%d", msg["id"])
-
             except Exception as exc:
                 await _mark_failed(db, msg["id"], str(exc))
                 logger.warning(
@@ -59,6 +41,42 @@ def make_retry_callback(ctx: object):
                 )
 
     return retry_failed_messages
+
+
+async def _retry_one(db: object, llm: object, bot: object, msg: dict) -> None:
+    """Retry a single failed message."""
+    payload = json.loads(msg["payload"])
+    msg_type = msg["msg_type"]
+
+    if msg_type == "text":
+        # Full replay: classify + save
+        from .handlers import _insert_message
+        text = payload.get("text", "")
+        classification = await llm.classify(text)
+        category = classification.get("category")
+        meta = dict(classification)
+        metadata = json.dumps(meta, ensure_ascii=False)
+        row_id = await _insert_message(db, msg["user_id"], "text", text, category, metadata)
+        if row_id:
+            await bot.send_message(
+                msg["chat_id"],
+                f"✅ 之前失败的消息已处理完成 (#{row_id})。",
+            )
+    elif msg_type in ("photo", "voice", "video"):
+        # Media: file URL may have expired, save placeholder
+        from .handlers import _insert_message
+        type_label = {"photo": "图片", "voice": "语音", "video": "视频"}.get(msg_type, "消息")
+        content = payload.get("caption") or payload.get("text") or f"[{type_label}，补录]"
+        metadata = json.dumps(payload, ensure_ascii=False)
+        row_id = await _insert_message(db, msg["user_id"], msg_type, content, None, metadata)
+        if row_id:
+            await bot.send_message(
+                msg["chat_id"],
+                f"✅ 之前失败的{type_label}已补录 (#{row_id})。",
+            )
+    else:
+        # Command or unknown type — just mark done, can't meaningfully retry
+        logger.debug("Skipping retry for msg_type=%s queue_id=%d", msg_type, msg["id"])
 
 
 async def _get_pending(db: object, max_attempts: int) -> list[dict]:
@@ -72,18 +90,14 @@ async def _get_pending(db: object, max_attempts: int) -> list[dict]:
     return [dict(r) for r in rows]
 
 
-async def _retry_media_fallback(db: object, msg: dict, payload: dict) -> None:
-    """Save a minimal placeholder record for media that failed processing."""
-    type_map = {
-        "photo": "photo",
-        "voice": "voice",
-        "video": "video",
-    }
-    msg_type = type_map.get(msg["msg_type"], "text")
-    content = payload.get("caption") or f"[{_type_label(msg['msg_type'])}，处理时失败已补录]"
-    metadata = json.dumps(payload, ensure_ascii=False)
-    await _insert_message(db, msg["user_id"], msg_type, content, None, metadata)
+async def _mark_done(db: object, queue_id: int) -> None:
+    await db.conn.execute("UPDATE message_queue SET status = 'done' WHERE id = ?", (queue_id,))
+    await db.conn.commit()
 
 
-def _type_label(msg_type: str) -> str:
-    return {"photo": "图片", "voice": "语音", "video": "视频"}.get(msg_type, "消息")
+async def _mark_failed(db: object, queue_id: int, error: str) -> None:
+    await db.conn.execute(
+        "UPDATE message_queue SET status = 'failed', attempts = attempts + 1, last_error = ? WHERE id = ?",
+        (error[:500], queue_id),
+    )
+    await db.conn.commit()
