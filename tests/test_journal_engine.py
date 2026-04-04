@@ -9,6 +9,16 @@ from src.storage.db import Database
 from src.storage.models import JournalCategory
 
 
+@pytest_asyncio.fixture
+async def db(tmp_path):
+    """Legacy db fixture using src.storage.db.Database for these tests."""
+    db_path = str(tmp_path / "test.db")
+    database = Database(db_path=db_path)
+    await database.connect()
+    yield database
+    await database.close()
+
+
 @pytest.mark.asyncio
 async def test_start_session_returns_first_prompt(db, fake_llm):
     llm = fake_llm(["今天几点起床的？精神状态怎么样？"])

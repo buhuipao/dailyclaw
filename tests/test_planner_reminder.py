@@ -2,8 +2,20 @@
 from __future__ import annotations
 
 import pytest
+import pytest_asyncio
 
 from src.planner.reminder import check_needs_reminder
+from src.storage.db import Database
+
+
+@pytest_asyncio.fixture
+async def db(tmp_path):
+    """Legacy db fixture using src.storage.db.Database for these tests."""
+    db_path = str(tmp_path / "test.db")
+    database = Database(db_path=db_path)
+    await database.connect()
+    yield database
+    await database.close()
 
 
 @pytest.mark.asyncio
