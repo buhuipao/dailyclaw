@@ -24,9 +24,13 @@ wheel: ## Build Python wheel (.whl)
 	@git checkout pyproject.toml
 	@echo "Built: dist/dailyclaw-$(VERSION)-py3-none-any.whl"
 
-docker: ## Build Docker image
+docker: ## Build Docker image (current platform)
 	docker build -t $(IMAGE):$(VERSION) -t $(IMAGE):latest .
 	@echo "Built: $(IMAGE):$(VERSION)"
+
+docker-amd64: ## Build Docker image for linux/amd64 (deploy to Ubuntu)
+	docker buildx build --platform linux/amd64 -t $(IMAGE):$(VERSION) -t $(IMAGE):latest --load .
+	@echo "Built: $(IMAGE):$(VERSION) (linux/amd64)"
 
 docker-push: ## Push Docker image (set REGISTRY first)
 	@if [ -z "$(REGISTRY)" ]; then echo "Usage: make docker-push REGISTRY=your.registry.com/repo"; exit 1; fi
