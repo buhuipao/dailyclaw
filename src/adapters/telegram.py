@@ -401,6 +401,7 @@ async def _ack_and_dispatch(
     # 1. Enqueue for reliability
     payload = json.dumps({"label": label, "text": event.text or ""}, ensure_ascii=False)
     queue_id = await _enqueue_to_db(db, user_id, chat_id, label, payload)
+    logger.info("[%s] user=%d queue_id=%s", label, user_id, queue_id)
 
     # 2. Send ACK (best effort)
     ack_msg_id: int | None = None
@@ -431,9 +432,10 @@ async def _bg_process(
     try:
         result = await handler(event)
         await _mark_queue_done(db, queue_id)
+        logger.info("[done] user=%d queue_id=%s", event.user_id, queue_id)
     except Exception as exc:
         await _mark_queue_failed(db, queue_id, str(exc))
-        logger.exception("Handler failed for user=%d", event.user_id)
+        logger.warning("[fail] user=%d queue_id=%s: %s", event.user_id, queue_id, exc)
         # Edit ACK to show retry message
         if ack_msg_id:
             try:
