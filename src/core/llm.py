@@ -95,7 +95,7 @@ class LLMService:
             for msg in messages
         ]
 
-        logger.info(
+        logger.debug(
             "[LLM] >>> model=%s msgs=%d temp=%.1f max_tokens=%d",
             provider.model, len(hardened), temp, tokens,
         )
@@ -118,7 +118,7 @@ class LLMService:
         result = "".join(chunks)
         elapsed = time.monotonic() - t0
 
-        logger.info("[LLM] <<< done in %.1fs response_len=%d", elapsed, len(result))
+        logger.debug("[LLM] <<< done in %.1fs response_len=%d", elapsed, len(result))
         logger.debug("[LLM] response: %.300s", result)
         return result
 
@@ -140,7 +140,7 @@ class LLMService:
             },
         ]
 
-        logger.info(
+        logger.debug(
             "[Vision] >>> model=%s image_size=%d prompt=%r",
             provider.model, len(image_bytes), prompt[:50] if prompt else "",
         )
@@ -172,7 +172,7 @@ class LLMService:
         result = "".join(chunks)
         elapsed = time.monotonic() - t0
 
-        logger.info("[Vision] <<< done in %.1fs response_len=%d", elapsed, len(result))
+        logger.debug("[Vision] <<< done in %.1fs response_len=%d", elapsed, len(result))
         logger.debug("[Vision] response: %.200s", result)
         return result
 

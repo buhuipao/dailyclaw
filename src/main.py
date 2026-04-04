@@ -215,6 +215,33 @@ async def _run(config: dict, tz: ZoneInfo) -> None:
         logger.info("DailyClaw stopped cleanly")
 
 
+def _log_startup_banner(config: dict, tz_name: str) -> None:
+    """Log configuration summary at startup."""
+    proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+    db_path = config.get("database", {}).get("path", "data/dailyclaw.db")
+    admin_ids = config.get("telegram", {}).get("allowed_user_ids", [])
+    config_path = os.environ.get("CONFIG_PATH", "config.yaml")
+
+    logger.info("=" * 50)
+    logger.info("DailyClaw starting")
+    logger.info("  config:   %s", config_path)
+    logger.info("  timezone: %s", tz_name)
+    logger.info("  database: %s", db_path)
+    logger.info("  proxy:    %s", proxy or "(direct)")
+    logger.info("  admins:   %s", admin_ids or "(none — open to all)")
+
+    llm_cfg = config.get("llm", {})
+    for cap in ("text", "vision", "audio", "video"):
+        section = llm_cfg.get(cap)
+        if section and section.get("api_key"):
+            logger.info("  llm.%-6s %s @ %s", cap + ":", section.get("model", "?"), section.get("base_url", "?"))
+
+    plugins_cfg = config.get("plugins", {})
+    if plugins_cfg:
+        logger.info("  plugins:  %s", ", ".join(sorted(plugins_cfg.keys())))
+    logger.info("=" * 50)
+
+
 def main() -> None:
     """Entry point: load config, set up timezone, and run the async loop."""
     config = load_config()
@@ -227,7 +254,7 @@ def main() -> None:
             f"Timezone '{tz_name}' not found. Install 'tzdata': pip install tzdata"
         ) from exc
 
-    logger.info("DailyClaw starting... timezone=%s", tz_name)
+    _log_startup_banner(config, tz_name)
 
     asyncio.run(_run(config, tz))
 

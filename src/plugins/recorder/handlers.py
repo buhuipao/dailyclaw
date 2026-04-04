@@ -61,11 +61,11 @@ def _make_text_handler(ctx: object):
         user_id = event.user_id
         chat_id = event.chat_id
 
-        logger.info("[recv] text from user=%d len=%d: %.80s", user_id, len(text), text)
+        logger.debug("[recv] text from user=%d len=%d: %.80s", user_id, len(text), text)
 
         payload = json.dumps({"text": text}, ensure_ascii=False)
         queue_id = await _enqueue(db, user_id, chat_id, "text", payload)
-        logger.info("[queue] enqueued id=%d type=text user=%d", queue_id, user_id)
+        logger.debug("[queue] enqueued id=%d type=text user=%d", queue_id, user_id)
 
         ack_ref = await bot.reply(event, _ACK_TEXT)
 
@@ -98,7 +98,7 @@ async def _bg_process_text(
             pass
         return
 
-    logger.info("[send] reply to user=%d len=%d: %.80s", user_id, len(reply), reply)
+    logger.debug("[send] reply to user=%d len=%d: %.80s", user_id, len(reply), reply)
     try:
         await bot.edit_message(chat_id, ack_msg_id, reply)
     except Exception:
@@ -110,21 +110,21 @@ async def _process_text(db: object, llm: object, user_id: int, text: str) -> str
     urls = URL_PATTERN.findall(text)
     has_url = bool(urls)
 
-    logger.info("[process] classifying text for user=%d", user_id)
+    logger.debug("[process] classifying text for user=%d", user_id)
     classification = await llm.classify(text)
     category = classification.get("category")
-    logger.info("[process] classified as category=%s tags=%s", category, classification.get("tags"))
+    logger.debug("[process] classified as category=%s tags=%s", category, classification.get("tags"))
 
     url_summary = ""
     if has_url:
         first_url = urls[0]
-        logger.info("[process] fetching URL: %s", first_url)
+        logger.debug("[process] fetching URL: %s", first_url)
         html = await fetch_url(first_url)
         if html:
             readable = extract_readable_text(html, url=first_url)
-            logger.info("[process] extracted readable text len=%d", len(readable) if readable else 0)
+            logger.debug("[process] extracted readable text len=%d", len(readable) if readable else 0)
             if readable:
-                logger.info("[process] summarizing URL content")
+                logger.debug("[process] summarizing URL content")
                 url_summary = await llm.summarize_text(text=readable, url=first_url)
 
     meta = dict(classification)
@@ -177,11 +177,11 @@ def _make_photo_handler(ctx: object):
         caption = event.caption or ""
         today = datetime.now(ctx.tz).strftime("%Y-%m-%d")
 
-        logger.info("[recv] photo from user=%d file_id=%s caption=%r", user_id, file_id[:20], caption[:50])
+        logger.debug("[recv] photo from user=%d file_id=%s caption=%r", user_id, file_id[:20], caption[:50])
 
         payload = json.dumps({"file_id": file_id, "caption": caption, "date": today}, ensure_ascii=False)
         queue_id = await _enqueue(db, user_id, chat_id, "photo", payload)
-        logger.info("[queue] enqueued id=%d type=photo user=%d", queue_id, user_id)
+        logger.debug("[queue] enqueued id=%d type=photo user=%d", queue_id, user_id)
 
         ack_ref = await bot.reply(event, _ACK_PHOTO)
 
@@ -231,7 +231,7 @@ async def _bg_process_photo(
     if analysis:
         reply += f"\n\n🔍 图片理解：\n{analysis}"
     reply += f"\n\n有误？发送 /recorder_del {row_id}"
-    logger.info("[send] photo reply to user=%d len=%d", user_id, len(reply))
+    logger.debug("[send] photo reply to user=%d len=%d", user_id, len(reply))
     try:
         await bot.edit_message(chat_id, ack_msg_id, reply)
     except Exception:
@@ -251,11 +251,11 @@ def _make_voice_handler(ctx: object):
         file_id = event.voice_file_id or ""
         today = datetime.now(ctx.tz).strftime("%Y-%m-%d")
 
-        logger.info("[recv] voice from user=%d", user_id)
+        logger.debug("[recv] voice from user=%d", user_id)
 
         payload = json.dumps({"file_id": file_id, "date": today}, ensure_ascii=False)
         queue_id = await _enqueue(db, user_id, chat_id, "voice", payload)
-        logger.info("[queue] enqueued id=%d type=voice user=%d", queue_id, user_id)
+        logger.debug("[queue] enqueued id=%d type=voice user=%d", queue_id, user_id)
 
         ack_ref = await bot.reply(event, _ACK_VOICE)
 
@@ -292,7 +292,7 @@ async def _bg_process_voice(
 
     reply = f"🎤 语音已记录 (#{row_id})。"
     reply += f"\n\n有误？发送 /recorder_del {row_id}"
-    logger.info("[send] voice reply to user=%d", user_id)
+    logger.debug("[send] voice reply to user=%d", user_id)
     try:
         await bot.edit_message(chat_id, ack_msg_id, reply)
     except Exception:
@@ -313,11 +313,11 @@ def _make_video_handler(ctx: object):
         caption = event.caption or ""
         today = datetime.now(ctx.tz).strftime("%Y-%m-%d")
 
-        logger.info("[recv] video from user=%d caption=%r", user_id, caption[:50])
+        logger.debug("[recv] video from user=%d caption=%r", user_id, caption[:50])
 
         payload = json.dumps({"file_id": file_id, "caption": caption, "date": today}, ensure_ascii=False)
         queue_id = await _enqueue(db, user_id, chat_id, "video", payload)
-        logger.info("[queue] enqueued id=%d type=video user=%d", queue_id, user_id)
+        logger.debug("[queue] enqueued id=%d type=video user=%d", queue_id, user_id)
 
         ack_ref = await bot.reply(event, _ACK_VIDEO)
 
@@ -358,7 +358,7 @@ async def _bg_process_video(
     if caption:
         reply += f"\n备注: {caption}"
     reply += f"\n\n有误？发送 /recorder_del {row_id}"
-    logger.info("[send] video reply to user=%d", user_id)
+    logger.debug("[send] video reply to user=%d", user_id)
     try:
         await bot.edit_message(chat_id, ack_msg_id, reply)
     except Exception:
