@@ -274,7 +274,7 @@ async def test_cmd_planner_list_shows_progress(ctx):
 
     assert reply is not None
     assert "每日阅读" in reply
-    assert "reading" in reply
+    assert "0/" in reply
 
 
 @pytest.mark.asyncio

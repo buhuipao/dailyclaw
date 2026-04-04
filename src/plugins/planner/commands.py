@@ -223,8 +223,8 @@ def _cmd_planner_list(ctx) -> Callable[[Event], Awaitable[str | None]]:
                 scheduled_days = [days_map[d.strip()] for d in schedule.split(",") if d.strip() in days_map]
                 expected = sum(1 for d in scheduled_days if d <= now.weekday())
 
-            bar = "■" * unique_days + "□" * max(0, expected - unique_days)
-            lines.append(f"{name} [{tag}]: {bar} {unique_days}/{expected}")
+            bar = "🟩" * unique_days + "⬜" * max(0, expected - unique_days)
+            lines.append(f"📌 {name}\n   {bar} {unique_days}/{expected}")
 
         return "\n".join(lines)
 

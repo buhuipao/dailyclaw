@@ -199,17 +199,17 @@ class TelegramAdapter(BotAdapter):
             )
             app.add_handler(tg_handler)
 
-        # Catch-all for unknown commands — return /help content
+        # Catch-all for unknown commands
         adapter_self = self
 
         async def _unknown_command(update: Update, context: Any) -> None:
             event = _build_event(update, adapter_self._auth)
             if event is None:
                 return
-            help_text = adapter_self._help_text or "发送 /help 查看可用命令"
+            cmd_text = (update.effective_message.text or "").split()[0]
 
             async def _handler(e: Event) -> str:
-                return help_text
+                return f"❓ 命令 {cmd_text} 不存在\n\n发送 /help 查看所有可用命令"
 
             await _ack_and_dispatch(_handler, event, update, adapter_self._db, "/unknown")
 
