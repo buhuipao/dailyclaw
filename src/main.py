@@ -200,9 +200,26 @@ async def _run(config: dict, tz: ZoneInfo) -> None:
 
     logger.info("DailyClaw starting with %d plugin(s)...", len(plugins))
 
+    # Retry startup — network may be flaky (proxy not yet ready, etc.)
+    max_attempts = 5
+    for attempt in range(1, max_attempts + 1):
+        try:
+            await adapter.start()
+            break
+        except Exception as exc:
+            logger.warning(
+                "Startup failed (attempt %d/%d): %s", attempt, max_attempts, exc,
+            )
+            if attempt == max_attempts:
+                logger.error("Giving up after %d startup attempts", max_attempts)
+                await registry.shutdown_all()
+                await db.close()
+                raise
+            await asyncio.sleep(3)
+            # Rebuild app for fresh connection pool
+            app = adapter.build()
+
     try:
-        await adapter.start()
-        # Keep running until interrupted
         stop_event = asyncio.Event()
         try:
             await stop_event.wait()
