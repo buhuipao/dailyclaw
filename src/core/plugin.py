@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import importlib.util
 import logging
+import sys
 from abc import ABC, abstractmethod
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -12,6 +13,36 @@ from src.core.context import AppContext
 from src.core.db import Database, MigrationRunner
 
 logger = logging.getLogger(__name__)
+
+
+def _derive_module_name(pkg_dir: Path) -> str:
+    """Return a dotted Python module name for *pkg_dir*.
+
+    Walks ``sys.path`` to find the longest matching prefix so that
+    intra-package relative imports work correctly.  Falls back to a
+    synthetic ``_dailyclaw_plugin_<name>`` name when no sys.path entry
+    matches.
+    """
+    pkg_dir = pkg_dir.resolve()
+    best_prefix: Path | None = None
+    for entry in sys.path:
+        if not entry:
+            # Empty string means cwd
+            entry_path = Path.cwd()
+        else:
+            entry_path = Path(entry).resolve()
+        try:
+            rel = pkg_dir.relative_to(entry_path)
+            if best_prefix is None or len(entry_path.parts) > len(best_prefix.parts):
+                best_prefix = entry_path
+                best_rel = rel
+        except ValueError:
+            continue
+
+    if best_prefix is not None:
+        return ".".join(best_rel.parts)
+
+    return f"_dailyclaw_plugin_{pkg_dir.name}"
 
 
 class BasePlugin(ABC):
@@ -104,14 +135,25 @@ class PluginRegistry:
                 continue
 
             # 2. Import __init__.py
+            # Derive a stable dotted module name so that intra-package relative
+            # imports (e.g. ``from .scheduler import …``) work correctly.
+            # We try to build the name from sys.path entries first; if the
+            # plugin lives inside the normal Python path we get a proper package
+            # name like ``src.plugins.journal``.  Otherwise we fall back to a
+            # synthetic name and register every submodule search location.
             init_file = pkg_dir / "__init__.py"
             try:
+                dotted_name = _derive_module_name(pkg_dir)
                 spec = importlib.util.spec_from_file_location(
-                    f"_dailyclaw_plugin_{pkg_name}", str(init_file)
+                    dotted_name,
+                    str(init_file),
+                    submodule_search_locations=[str(pkg_dir)],
                 )
                 if spec is None or spec.loader is None:
                     raise ImportError(f"Cannot load spec from {init_file}")
                 module = importlib.util.module_from_spec(spec)
+                # Register before exec so that relative imports resolve.
+                sys.modules[dotted_name] = module
                 spec.loader.exec_module(module)  # type: ignore[union-attr]
             except Exception:
                 logger.error(
