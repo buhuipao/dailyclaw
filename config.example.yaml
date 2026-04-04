@@ -21,12 +21,7 @@ plugins:
   journal:
     evening_prompt_time: "21:30"
     template: "zeng_guofan"
-  planner:
-    plans:
-      - name: "雅思学习"
-        schedule: "daily"
-        remind_time: "20:00"
-        tag: "ielts"
+  planner: {}                    # plans are created per-user via /planner_add
   sharing:
     output_dir: "./data/site"
     site_title: "My Daily Claw"
