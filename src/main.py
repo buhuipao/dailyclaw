@@ -200,6 +200,7 @@ async def _run(config: dict, tz: ZoneInfo) -> None:
 
     # 8. Generate /help text and register framework commands
     help_text = _generate_help_text(plugins)
+    adapter._help_text = help_text
     adapter.register_command(_make_start_handler())
     adapter.register_command(_make_help_handler(help_text))
     adapter.register_command(_make_invite_handler(db))

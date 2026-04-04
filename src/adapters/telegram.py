@@ -161,6 +161,7 @@ class TelegramAdapter(BotAdapter):
         self._token = token
         self._auth = DynamicAuthFilter(admin_ids)
         self._db = db  # Core Database for message queue
+        self._help_text: str = ""  # Set by main.py after generating help
         self._commands: list[Command] = []
         self._handlers: list[MessageHandler] = []
         self._conversations: list[ConversationFlow] = []
@@ -198,17 +199,19 @@ class TelegramAdapter(BotAdapter):
             )
             app.add_handler(tg_handler)
 
-        # Catch-all for unknown commands — must be before general message handlers
-        known = {cmd.name for cmd in self._commands}
-        known.update(conv.entry_command for conv in self._conversations)
-        known.update(conv.cancel_command for conv in self._conversations)
+        # Catch-all for unknown commands — return /help content
+        adapter_self = self
 
         async def _unknown_command(update: Update, context: Any) -> None:
-            msg = update.effective_message
-            if msg and msg.text:
-                cmd_text = msg.text.split()[0]  # e.g. "/foo"
-                hint = "  ".join(f"/{n}" for n in sorted(known))
-                await msg.reply_text(f"未知命令 {cmd_text}\n\n可用命令：\n{hint}\n\n发送 /help 查看详细说明")
+            event = _build_event(update, adapter_self._auth)
+            if event is None:
+                return
+            help_text = adapter_self._help_text or "发送 /help 查看可用命令"
+
+            async def _handler(e: Event) -> str:
+                return help_text
+
+            await _ack_and_dispatch(_handler, event, update, adapter_self._db, "/unknown")
 
         app.add_handler(TgMessageHandler(filters.COMMAND, _unknown_command))
 
