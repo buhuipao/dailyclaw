@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ site_title }} - {{ date }}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, "Noto Sans SC", "PingFang SC", sans-serif;
+            max-width: 680px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+            color: #333;
+            background: #fafafa;
+            line-height: 1.7;
+        }
+        h1 { font-size: 1.4rem; margin-bottom: 0.5rem; }
+        .date { color: #888; font-size: 0.9rem; margin-bottom: 2rem; }
+        .category { margin-bottom: 1.5rem; }
+        .category-label {
+            font-weight: 600;
+            color: #555;
+            border-left: 3px solid #4a9;
+            padding-left: 0.6rem;
+            margin-bottom: 0.4rem;
+        }
+        .category-content {
+            padding-left: 1rem;
+            color: #444;
+            white-space: pre-wrap;
+        }
+        .empty { color: #aaa; font-style: italic; }
+        .summary {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: #f0f7f4;
+            border-radius: 8px;
+        }
+        footer {
+            margin-top: 3rem;
+            color: #bbb;
+            font-size: 0.8rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>{{ site_title }}</h1>
+    <div class="date">{{ date }}</div>
+
+    {% if entries %}
+        {% for cat_label, content in entries %}
+        <div class="category">
+            <div class="category-label">{{ cat_label }}</div>
+            <div class="category-content">{{ content }}</div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <p class="empty">暂无记录</p>
+    {% endif %}
+
+    {% if summary %}
+    <div class="summary">
+        <div class="category-label">总结</div>
+        <div class="category-content">{{ summary }}</div>
+    </div>
+    {% endif %}
+
+    <footer>Powered by DailyClaw</footer>
+</body>
+</html>

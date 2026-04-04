@@ -1,0 +1,3 @@
+recursive-include src *.sql *.html
+include config.example.yaml
+include .env.example

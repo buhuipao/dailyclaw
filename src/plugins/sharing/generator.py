@@ -16,7 +16,8 @@ CATEGORY_LABELS: dict[str, str] = {
     "reflection": "反省",
 }
 
-_TEMPLATES_DIR = str(Path(__file__).resolve().parent.parent.parent.parent / "templates")
+# Templates live inside the src package so they're included in pip install
+_TEMPLATES_DIR = str(Path(__file__).resolve().parent.parent.parent / "templates")
 
 
 async def generate_share_page(
