@@ -32,12 +32,18 @@ docker-amd64: ## Build Docker image for linux/amd64 (deploy to Ubuntu)
 	docker buildx build --platform linux/amd64 -t $(IMAGE):$(VERSION) -t $(IMAGE):latest --load .
 	@echo "Built: $(IMAGE):$(VERSION) (linux/amd64)"
 
+docker-save: ## Export Docker image to .tar.gz for offline deploy
+	docker save $(IMAGE):latest | gzip > dist/$(IMAGE)-$(VERSION).tar.gz
+	@echo "Saved: dist/$(IMAGE)-$(VERSION).tar.gz"
+
 docker-push: ## Push Docker image (set REGISTRY first)
 	@if [ -z "$(REGISTRY)" ]; then echo "Usage: make docker-push REGISTRY=your.registry.com/repo"; exit 1; fi
 	docker tag $(IMAGE):$(VERSION) $(REGISTRY):$(VERSION)
 	docker tag $(IMAGE):latest $(REGISTRY):latest
 	docker push $(REGISTRY):$(VERSION)
 	docker push $(REGISTRY):latest
+
+deploy: docker-amd64 docker-save ## Build amd64 image + export .tar.gz (one-step deploy prep)
 
 clean: ## Clean build artifacts
 	rm -rf dist/ build/ *.egg-info src/*.egg-info
