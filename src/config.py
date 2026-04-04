@@ -7,6 +7,11 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from dotenv import load_dotenv
+
+# Load .env file — override=True so .env values win over shell env vars
+# (e.g. correcting a stale HTTPS_PROXY inherited from the shell profile).
+load_dotenv(override=True)
 
 
 def _resolve_env_vars(value: str) -> str:
@@ -47,7 +52,16 @@ def load_config(path: str | None = None) -> dict[str, Any]:
     # Validate required fields
     if not config.get("telegram", {}).get("token"):
         raise ValueError("telegram.token is required")
-    if not config.get("llm", {}).get("api_key"):
-        raise ValueError("llm.api_key is required")
+    llm = config.get("llm", {})
+    if not llm.get("text", {}).get("api_key"):
+        raise ValueError("llm.text.api_key is required")
+
+    # Vision config is optional — only validate if present
+    vision = llm.get("vision")
+    if vision:
+        if not vision.get("api_key"):
+            raise ValueError("llm.vision.api_key is required when vision is configured")
+        if not vision.get("base_url"):
+            raise ValueError("llm.vision.base_url is required when vision is configured")
 
     return config
