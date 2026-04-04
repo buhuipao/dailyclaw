@@ -6,3 +6,11 @@ __pycache__/
 .venv/
 .mypy_cache/
 .ruff_cache/
+dailyclaw.egg-info/
+dailyclaw.tar.gz
+dist/
+build/
+*.egg-info/
+.coverage
+.pytest_cache/
+.claude/settings.local.json
