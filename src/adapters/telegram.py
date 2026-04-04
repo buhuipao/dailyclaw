@@ -198,6 +198,20 @@ class TelegramAdapter(BotAdapter):
             )
             app.add_handler(tg_handler)
 
+        # Catch-all for unknown commands — must be before general message handlers
+        known = {cmd.name for cmd in self._commands}
+        known.update(conv.entry_command for conv in self._conversations)
+        known.update(conv.cancel_command for conv in self._conversations)
+
+        async def _unknown_command(update: Update, context: Any) -> None:
+            msg = update.effective_message
+            if msg and msg.text:
+                cmd_text = msg.text.split()[0]  # e.g. "/foo"
+                hint = "  ".join(f"/{n}" for n in sorted(known))
+                await msg.reply_text(f"未知命令 {cmd_text}\n\n可用命令：\n{hint}\n\n发送 /help 查看详细说明")
+
+        app.add_handler(TgMessageHandler(filters.COMMAND, _unknown_command))
+
         for mh in sorted(self._handlers, key=lambda h: -h.priority):
             tg_filter = self._msg_type_to_filter(mh.msg_type)
             if tg_filter is not None:
