@@ -85,14 +85,38 @@ class AppContext:
     db: Database
     llm: LLMService
     bot: BotAdapter
-    scheduler: Any           # APScheduler 实例（通过 python-telegram-bot 的 JobQueue 暴露）
+    scheduler: Scheduler
     config: dict[str, Any]   # 该插件自己的配置段，即 config["plugins"][plugin.name]
     tz: ZoneInfo
 ```
 
-> **Scheduler 说明：** 当前使用 `python-telegram-bot` 内置的 `JobQueue`（底层是 APScheduler）。
-> 插件通过 `ctx.scheduler.run_daily(callback, time)` / `ctx.scheduler.run_repeating(callback, interval)` 注册定时任务。
-> 未来如果脱离 Telegram 适配器，需要抽象一个 `SchedulerProtocol`。当前阶段直接透传 `JobQueue` 即可。
+### Scheduler 抽象
+
+```python
+class Scheduler(ABC):
+    """定时任务调度器 — 与 Bot 实现解耦。"""
+
+    @abstractmethod
+    async def run_daily(
+        self, callback: Callable, time: time, name: str, data: Any = None,
+    ) -> None:
+        """每天固定时间执行。"""
+        ...
+
+    @abstractmethod
+    async def run_repeating(
+        self, callback: Callable, interval: float, name: str, first: float = 0,
+    ) -> None:
+        """按固定间隔重复执行。"""
+        ...
+
+    @abstractmethod
+    async def cancel(self, name: str) -> None:
+        """取消指定名称的任务。"""
+        ...
+```
+
+TelegramAdapter 内部用 `python-telegram-bot` 的 `JobQueue` 实现此接口。其他适配器可用 APScheduler、asyncio 或其他调度库实现。
 
 ### 3.2 BasePlugin
 
