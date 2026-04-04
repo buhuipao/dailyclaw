@@ -58,22 +58,32 @@ def _build_llm_service(llm_config: dict) -> LLMService:
     return LLMService(providers)
 
 
+_PLUGIN_EMOJI: dict[str, str] = {
+    "journal": "🌙",
+    "planner": "📊",
+    "recorder": "📝",
+    "sharing": "📄",
+}
+
+
 def _generate_help_text(plugins: list) -> str:
     """Build /help text from all loaded plugin commands."""
-    lines: list[str] = ["*DailyClaw 指令列表*\n"]
+    lines: list[str] = ["🦉 *DailyClaw 指令列表*\n"]
     for plugin in plugins:
         cmds = plugin.get_commands()
         if not cmds:
             continue
-        lines.append(f"*{plugin.description or plugin.name}*")
+        emoji = _PLUGIN_EMOJI.get(plugin.name, "📌")
+        lines.append(f"{emoji} *{plugin.description or plugin.name}*")
         for cmd in cmds:
             prefix = " (管理员)" if cmd.admin_only else ""
             lines.append(f"  /{cmd.name} — {cmd.description}{prefix}")
-    lines.append("\n框架指令")
-    lines.append("  /start — 欢迎消息")
-    lines.append("  /help — 显示帮助")
-    lines.append("  /invite <user_id> — 邀请用户 (管理员)")
-    lines.append("  /kick <user_id> — 踢出用户 (管理员)")
+        lines.append("")
+    lines.append("🔑 *管理员*")
+    lines.append("  /invite <user_id> — 邀请用户")
+    lines.append("  /kick <user_id> — 踢出用户")
+    lines.append("")
+    lines.append("💡 /start — 欢迎消息 | /help — 显示帮助")
     return "\n".join(lines)
 
 
