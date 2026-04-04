@@ -5,7 +5,6 @@ CREATE TABLE IF NOT EXISTS messages (
     content TEXT NOT NULL,
     category TEXT,
     metadata TEXT DEFAULT '',
-    deleted_at TEXT,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -23,4 +22,3 @@ CREATE TABLE IF NOT EXISTS message_queue (
 
 CREATE INDEX IF NOT EXISTS idx_queue_status ON message_queue(status);
 CREATE INDEX IF NOT EXISTS idx_messages_user_date ON messages(user_id, created_at);
-CREATE INDEX IF NOT EXISTS idx_messages_not_deleted ON messages(user_id, deleted_at);

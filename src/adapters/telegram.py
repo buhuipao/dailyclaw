@@ -221,10 +221,15 @@ class TelegramAdapter(BotAdapter):
     async def stop(self) -> None:
         if self._app is None:
             return
-        await self._app.updater.stop()
-        await self._app.stop()
-        await self._app.shutdown()
-        logger.info("TelegramAdapter stopped")
+        try:
+            if self._app.updater and self._app.updater.running:
+                await self._app.updater.stop()
+            if self._app.running:
+                await self._app.stop()
+            await self._app.shutdown()
+            logger.info("TelegramAdapter stopped")
+        except Exception:
+            logger.debug("TelegramAdapter stop error (ignored)", exc_info=True)
 
     # ------------------------------------------------------------------
     # Messaging
