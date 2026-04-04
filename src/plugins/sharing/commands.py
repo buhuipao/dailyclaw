@@ -56,9 +56,7 @@ def _make_summary_handler(ctx: "AppContext"):
 
     async def cmd_sharing_summary(event: "Event") -> str:
         text = (event.text or "").strip()
-        parts = text.split()
-        # parts[0] is the command; optional arg is period type
-        period_type = parts[1] if len(parts) >= 2 else "week"
+        period_type = text if text else "week"
 
         if period_type not in ("week", "month"):
             return "用法: /sharing_summary [week|month]"
@@ -89,9 +87,7 @@ def _make_export_handler(ctx: "AppContext"):
 
     async def cmd_sharing_export(event: "Event") -> str:
         text = (event.text or "").strip()
-        parts = text.split()
-        # parts[0] is the command; optional arg is date
-        date = parts[1] if len(parts) >= 2 else datetime.now(ctx.tz).strftime("%Y-%m-%d")
+        date = text if text else datetime.now(ctx.tz).strftime("%Y-%m-%d")
 
         messages = await _get_messages(ctx.db, event.user_id, date)
         journal = await _get_journal_entries(ctx.db, event.user_id, date)

@@ -265,7 +265,7 @@ async def test_recorder_del_soft_deletes_own_message(recorder_db):
     await db.conn.commit()
     msg_id = cursor.lastrowid
 
-    event = Event(user_id=666, chat_id=9001, text=f"/recorder_del {msg_id}")
+    event = Event(user_id=666, chat_id=9001, text=str(msg_id))
     reply = await recorder_del(db, event)
 
     assert reply is not None
@@ -293,7 +293,7 @@ async def test_recorder_del_rejects_wrong_owner(recorder_db):
     msg_id = cursor.lastrowid
 
     # Different user tries to delete it
-    event = Event(user_id=888, chat_id=9001, text=f"/recorder_del {msg_id}")
+    event = Event(user_id=888, chat_id=9001, text=str(msg_id))
     reply = await recorder_del(db, event)
 
     assert reply is not None
@@ -313,7 +313,7 @@ async def test_recorder_del_invalid_id(recorder_db):
     from src.plugins.recorder.commands import recorder_del
 
     db = recorder_db
-    event = Event(user_id=999, chat_id=9001, text="/recorder_del abc")
+    event = Event(user_id=999, chat_id=9001, text="abc")
     reply = await recorder_del(db, event)
 
     assert reply is not None
@@ -326,7 +326,7 @@ async def test_recorder_del_missing_id(recorder_db):
     from src.plugins.recorder.commands import recorder_del
 
     db = recorder_db
-    event = Event(user_id=999, chat_id=9001, text="/recorder_del")
+    event = Event(user_id=999, chat_id=9001, text=None)
     reply = await recorder_del(db, event)
 
     assert reply is not None
@@ -339,7 +339,7 @@ async def test_recorder_del_nonexistent_message(recorder_db):
     from src.plugins.recorder.commands import recorder_del
 
     db = recorder_db
-    event = Event(user_id=999, chat_id=9001, text="/recorder_del 99999")
+    event = Event(user_id=999, chat_id=9001, text="99999")
     reply = await recorder_del(db, event)
 
     assert reply is not None
@@ -359,7 +359,7 @@ async def test_recorder_del_already_deleted(recorder_db):
     await db.conn.commit()
     msg_id = cursor.lastrowid
 
-    event = Event(user_id=100, chat_id=9001, text=f"/recorder_del {msg_id}")
+    event = Event(user_id=100, chat_id=9001, text=str(msg_id))
     reply = await recorder_del(db, event)
 
     assert reply is not None

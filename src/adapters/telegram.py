@@ -278,6 +278,20 @@ class TelegramAdapter(BotAdapter):
                 if update.effective_message:
                     await update.effective_message.reply_text("⛔ 无权限")
                 return
+            # Strip the /command prefix — event.text should only contain arguments.
+            # e.g. "/planner_add 每天学雅思" → "每天学雅思", "/help" → None
+            args_text = " ".join(context.args) if context.args else None
+            event = Event(
+                user_id=event.user_id,
+                chat_id=event.chat_id,
+                text=args_text,
+                photo_file_id=event.photo_file_id,
+                voice_file_id=event.voice_file_id,
+                video_file_id=event.video_file_id,
+                caption=event.caption,
+                is_admin=event.is_admin,
+                raw=event.raw,
+            )
             await _ack_and_dispatch(cmd.handler, event, update, db, f"/{cmd.name}")
 
         return _handler

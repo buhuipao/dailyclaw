@@ -18,14 +18,10 @@ async def recorder_del(db: object, event: Event) -> str | None:
     Returns a user-facing confirmation or error string.
     """
     text = (event.text or "").strip()
-    parts = text.split()
-
-    # Parts[0] is the command name itself; the ID is parts[1]
-    raw_id = parts[1] if len(parts) >= 2 else ""
-    if not raw_id.lstrip("-").isdigit():
+    if not text or not text.lstrip("-").isdigit():
         return "❌ 请提供要删除的记录 ID，例如：/recorder_del 42"
 
-    record_id = int(raw_id)
+    record_id = int(text)
     if record_id <= 0:
         return "❌ 记录 ID 必须是正整数。"
 
