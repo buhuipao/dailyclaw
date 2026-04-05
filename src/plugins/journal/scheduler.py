@@ -227,6 +227,6 @@ async def setup_journal_schedules(ctx: "AppContext") -> None:
         callback=lambda data=None: _weekly_summary_callback(ctx, data),
         time=summary_time,
         name="journal_weekly_summary",
-        days=(6,),  # Sunday
+        days=(0,),  # Sunday (ptb v20+: 0=Sun, 6=Sat)
     )
     logger.info("Scheduled journal weekly summary for Sunday 22:00")

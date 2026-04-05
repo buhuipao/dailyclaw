@@ -344,4 +344,4 @@ async def test_setup_plan_reminders_registers_jobs(planner_db, fake_bot, fake_sc
     assert ielts_job["days"] is None  # daily schedule
 
     workout_job = fake_scheduler.jobs["plan_reminder_workout"]
-    assert workout_job["days"] == (0, 2, 4)  # mon, wed, fri
+    assert workout_job["days"] == (1, 3, 5)  # mon, wed, fri (ptb v20+: 0=Sun)

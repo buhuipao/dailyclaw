@@ -12,7 +12,8 @@ from .reminder import check_needs_reminder
 
 logger = logging.getLogger(__name__)
 
-DAYS_MAP = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
+# python-telegram-bot v20+ days mapping: 0=Sun, 1=Mon, ..., 6=Sat
+DAYS_MAP = {"sun": 0, "mon": 1, "tue": 2, "wed": 3, "thu": 4, "fri": 5, "sat": 6}
 
 
 def _parse_schedule_days(schedule: str) -> tuple[int, ...] | None:
