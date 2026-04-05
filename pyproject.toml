@@ -38,12 +38,10 @@ dailyclaw = "src.main:main"
 include = ["src*"]
 
 [tool.setuptools.package-data]
-"src" = ["templates/*.html"]
 "src.core" = ["migrations/*.sql"]
 "src.plugins.recorder" = ["migrations/*.sql"]
 "src.plugins.journal" = ["migrations/*.sql"]
 "src.plugins.planner" = ["migrations/*.sql"]
-"src.plugins.sharing" = ["migrations/*.sql"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

@@ -14,7 +14,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy app code
 COPY src/ src/
-COPY templates/ templates/
 
 # Data dir for SQLite + media
 RUN mkdir -p /app/data
