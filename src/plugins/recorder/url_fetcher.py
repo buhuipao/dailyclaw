@@ -9,6 +9,8 @@ from urllib.parse import urlparse
 import httpx
 from readability import Document
 
+from src.core.retry import with_retry
+
 logger = logging.getLogger(__name__)
 
 _TIMEOUT = 10.0
@@ -56,19 +58,28 @@ async def fetch_url(url: str) -> str | None:
         return None
 
     try:
-        async with httpx.AsyncClient(
-            timeout=_TIMEOUT,
-            follow_redirects=True,
-            headers={"User-Agent": "DailyClaw/1.0"},
-        ) as client:
-            response = await client.get(url)
-            if response.status_code >= 400:
-                logger.warning("URL fetch failed: %s -> %d", url, response.status_code)
-                return None
-            return response.text
+        return await _fetch_url_inner(url)
     except Exception as exc:
-        logger.warning("URL fetch error for %s: %s", url, exc)
+        logger.warning("URL fetch error for %s after retries: %s", url, exc)
         return None
+
+
+@with_retry(max_retries=3, delay=1.0)
+async def _fetch_url_inner(url: str) -> str:
+    """Fetch URL with retry. Raises on failure."""
+    async with httpx.AsyncClient(
+        timeout=_TIMEOUT,
+        follow_redirects=True,
+        headers={"User-Agent": "DailyClaw/1.0"},
+    ) as client:
+        response = await client.get(url)
+        if response.status_code >= 400:
+            raise httpx.HTTPStatusError(
+                f"HTTP {response.status_code}",
+                request=response.request,
+                response=response,
+            )
+        return response.text
 
 
 def extract_readable_text(html: str, url: str = "") -> str:

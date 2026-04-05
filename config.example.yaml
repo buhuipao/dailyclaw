@@ -13,6 +13,10 @@ llm:
     api_key: "${VISION_API_KEY}"
     model: "doubao-seed-1241-v2.0-250304"
 
+# Log level: DEBUG (default) | INFO | WARNING | ERROR
+# Local dev: omit or set DEBUG; production: set INFO
+log_level: "DEBUG"
+
 timezone: "Asia/Shanghai"
 
 plugins:

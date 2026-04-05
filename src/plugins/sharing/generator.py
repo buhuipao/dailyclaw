@@ -7,14 +7,9 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
 
-logger = logging.getLogger(__name__)
+from src.core.i18n.shared import category_label
 
-CATEGORY_LABELS: dict[str, str] = {
-    "morning": "晨起",
-    "reading": "所阅",
-    "social": "待人接物",
-    "reflection": "反省",
-}
+logger = logging.getLogger(__name__)
 
 # Templates live inside the src package so they're included in pip install
 _TEMPLATES_DIR = str(Path(__file__).resolve().parent.parent.parent / "templates")
@@ -34,7 +29,7 @@ async def generate_share_page(
     entries_raw = await _get_journal_entries(db, user_id, date)
 
     entries = [
-        (CATEGORY_LABELS.get(e["category"], e["category"]), e["content"])
+        (category_label(e["category"], "zh"), e["content"])
         for e in entries_raw
     ]
 

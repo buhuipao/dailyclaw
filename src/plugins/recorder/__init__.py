@@ -4,6 +4,8 @@ from __future__ import annotations
 from src.core.bot import Command, Event, MessageHandler, MessageType
 from src.core.plugin import BasePlugin
 
+import src.plugins.recorder.locale  # noqa: F401
+
 
 class RecorderPlugin(BasePlugin):
     name = "recorder"
@@ -22,9 +24,14 @@ class RecorderPlugin(BasePlugin):
             from .commands import recorder_today
             return await recorder_today(db, tz, event)
 
+        async def _list_handler(event: Event) -> str | None:
+            from .commands import recorder_list
+            return await recorder_list(db, tz, event)
+
         return [
             Command(name="recorder_today", description="查看今日记录", handler=_today_handler),
             Command(name="recorder_del", description="删除一条记录", handler=_del_handler),
+            Command(name="recorder_list", description="记录热力图", handler=_list_handler),
         ]
 
     def get_handlers(self) -> list[MessageHandler]:

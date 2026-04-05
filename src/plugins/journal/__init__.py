@@ -4,6 +4,8 @@ from __future__ import annotations
 from src.core.bot import Command, ConversationFlow
 from src.core.plugin import BasePlugin
 
+import src.plugins.journal.locale  # noqa: F401
+
 # Module-level context reference — set during on_startup so command handlers can access it.
 _plugin_ctx = None  # type: ignore[assignment]
 
@@ -22,10 +24,11 @@ class JournalPlugin(BasePlugin):
         ]
 
     def get_conversations(self) -> list[ConversationFlow]:
-        from .commands import journal_answer_handler
+        from .commands import cmd_journal_start, journal_answer_handler
         return [ConversationFlow(
             name="journal_reflection",
             entry_command="journal_start",
+            entry_handler=cmd_journal_start,
             states={0: journal_answer_handler},
             cancel_command="journal_cancel",
         )]

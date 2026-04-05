@@ -159,7 +159,7 @@ async def test_cmd_planner_add_creates_plan(ctx):
     commands = make_commands(ctx)
     handler = next(c.handler for c in commands if c.name == "planner_add")
 
-    event = Event(user_id=1, chat_id=1, text="每天学雅思，晚上8点提醒")
+    event = Event(user_id=1, chat_id=1, lang="zh", text="每天学雅思，晚上8点提醒")
     reply = await handler(event)
 
     assert reply is not None
@@ -180,7 +180,7 @@ async def test_cmd_planner_add_missing_text_returns_usage(ctx):
     commands = make_commands(ctx)
     handler = next(c.handler for c in commands if c.name == "planner_add")
 
-    event = Event(user_id=1, chat_id=1, text=None)
+    event = Event(user_id=1, chat_id=1, lang="zh", text=None)
     reply = await handler(event)
 
     assert reply is not None
@@ -203,7 +203,7 @@ async def test_cmd_planner_add_duplicate_tag_blocked(ctx):
     commands = make_commands(ctx)
     handler = next(c.handler for c in commands if c.name == "planner_add")
 
-    event = Event(user_id=1, chat_id=1, text="重复的计划")
+    event = Event(user_id=1, chat_id=1, lang="zh", text="重复的计划")
     reply = await handler(event)
 
     assert reply is not None
@@ -226,7 +226,7 @@ async def test_cmd_planner_checkin_saves_record(ctx):
     commands = make_commands(ctx)
     handler = next(c.handler for c in commands if c.name == "planner_checkin")
 
-    event = Event(user_id=1, chat_id=1, text="今天练了30分钟")
+    event = Event(user_id=1, chat_id=1, lang="zh", text="今天练了30分钟")
     reply = await handler(event)
 
     assert reply is not None
@@ -247,7 +247,7 @@ async def test_cmd_planner_checkin_no_plans(ctx):
     commands = make_commands(ctx)
     handler = next(c.handler for c in commands if c.name == "planner_checkin")
 
-    event = Event(user_id=1, chat_id=1, text="跑了5公里")
+    event = Event(user_id=1, chat_id=1, lang="zh", text="跑了5公里")
     reply = await handler(event)
 
     assert reply is not None
@@ -269,7 +269,7 @@ async def test_cmd_planner_list_shows_progress(ctx):
     commands = make_commands(ctx)
     handler = next(c.handler for c in commands if c.name == "planner_list")
 
-    event = Event(user_id=1, chat_id=1, text=None)
+    event = Event(user_id=1, chat_id=1, lang="zh", text=None)
     reply = await handler(event)
 
     assert reply is not None
@@ -293,7 +293,7 @@ async def test_cmd_planner_del_archives_plan(ctx):
     handler = next(c.handler for c in commands if c.name == "planner_del")
 
     # FakeLLMService.match_checkin returns first plan's tag ("test")
-    event = Event(user_id=1, chat_id=1, text="待归档计划")
+    event = Event(user_id=1, chat_id=1, lang="zh", text="待归档计划")
     reply = await handler(event)
 
     assert reply is not None

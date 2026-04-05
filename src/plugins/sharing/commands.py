@@ -6,23 +6,16 @@ import logging
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
+from src.core.i18n import t
+from src.core.i18n.shared import category_label
+
+import src.plugins.sharing.locale  # noqa: F401
+
 if TYPE_CHECKING:
     from src.core.bot import Command, Event
     from src.core.context import AppContext
 
 logger = logging.getLogger(__name__)
-
-CATEGORY_LABELS: dict[str, str] = {
-    "morning": "晨起",
-    "reading": "所阅",
-    "social": "待人接物",
-    "reflection": "反省",
-}
-
-PERIOD_LABELS: dict[str, str] = {
-    "week": "本周",
-    "month": "本月",
-}
 
 MSG_TYPE_ICONS: dict[str, str] = {
     "link": "🔗",
@@ -59,7 +52,7 @@ def _make_summary_handler(ctx: "AppContext"):
         period_type = text if text else "week"
 
         if period_type not in ("week", "month"):
-            return "用法: /sharing_summary [week|month]"
+            return t("sharing.summary_usage", event.lang)
 
         now = datetime.now(ctx.tz)
         if period_type == "week":
@@ -76,6 +69,7 @@ def _make_summary_handler(ctx: "AppContext"):
             period_type=period_type,
             start_date=start,
             end_date=end,
+            lang=event.lang,
         )
         return f"📊 {result}"
 
@@ -93,12 +87,12 @@ def _make_export_handler(ctx: "AppContext"):
         journal = await _get_journal_entries(ctx.db, event.user_id, date)
 
         if not messages and not journal:
-            return f"📭 {date} 没有记录。"
+            return t("sharing.export_empty", event.lang, date=date)
 
-        lines: list[str] = [f"📅 {date} 日记\n"]
+        lines: list[str] = [t("sharing.export_header", event.lang, date=date)]
 
         if messages:
-            lines.append("── 今日记录 ──")
+            lines.append(t("sharing.export_records_section", event.lang))
             for msg in messages:
                 icon = MSG_TYPE_ICONS.get(msg.get("msg_type", ""), DEFAULT_ICON)
                 content = (msg.get("content") or "")[:200]
@@ -108,18 +102,18 @@ def _make_export_handler(ctx: "AppContext"):
                     try:
                         meta = json.loads(meta_raw)
                         if meta.get("url_summary"):
-                            lines.append(f"   摘要: {meta['url_summary']}")
+                            lines.append(t("sharing.export_summary_label", event.lang, text=meta['url_summary']))
                         if meta.get("vision_analysis"):
-                            lines.append(f"   图片: {meta['vision_analysis']}")
+                            lines.append(t("sharing.export_vision_label", event.lang, text=meta['vision_analysis']))
                     except json.JSONDecodeError:
                         pass
             lines.append("")
 
         if journal:
-            lines.append("── 日记反思 ──")
+            lines.append(t("sharing.export_journal_section", event.lang))
             for entry in journal:
                 cat = entry.get("category", "")
-                cat_label = CATEGORY_LABELS.get(cat, cat)
+                cat_label = category_label(cat, event.lang)
                 lines.append(f"【{cat_label}】{entry.get('content', '')}")
             lines.append("")
 

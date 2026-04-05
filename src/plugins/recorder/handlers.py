@@ -8,6 +8,7 @@ All handlers return a str reply. The framework (TelegramAdapter) handles:
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -15,6 +16,10 @@ import re
 from datetime import datetime
 
 from src.core.bot import Event, MessageHandler, MessageType
+from src.core.i18n import t
+from src.core.i18n.shared import category_label
+
+import src.plugins.recorder.locale  # noqa: F401
 
 from .dedup import check_dedup
 from .url_fetcher import extract_readable_text, fetch_url
@@ -22,15 +27,6 @@ from .url_fetcher import extract_readable_text, fetch_url
 logger = logging.getLogger(__name__)
 
 URL_PATTERN = re.compile(r"https?://\S+")
-
-CATEGORY_LABELS = {
-    "morning": "晨起",
-    "reading": "所阅",
-    "social": "待人接物",
-    "reflection": "反省",
-    "idea": "想法",
-    "other": "记录",
-}
 
 _MEDIA_DIR = "data/media"
 
@@ -57,7 +53,7 @@ def _make_text_handler(ctx: object):
         user_id = event.user_id
 
         logger.debug("[process] classifying text for user=%d", user_id)
-        classification = await llm.classify(text)
+        classification = await llm.classify(text, lang=event.lang)
         category = classification.get("category")
         logger.debug("[process] classified as category=%s", category)
 
@@ -71,7 +67,7 @@ def _make_text_handler(ctx: object):
             if html:
                 readable = extract_readable_text(html, url=first_url)
                 if readable:
-                    url_summary = await llm.summarize_text(text=readable, url=first_url)
+                    url_summary = await llm.summarize_text(text=readable, url=first_url, lang=event.lang)
 
         meta = dict(classification)
         if url_summary:
@@ -84,29 +80,29 @@ def _make_text_handler(ctx: object):
         if dedup is not None:
             row_id = await _apply_dedup(db, user_id, dedup, text, msg_type, category, metadata)
             if row_id is None:
-                return "这条消息刚刚已经记录过了，不会重复保存。"
-            cat_label = CATEGORY_LABELS.get(category, "记录")
+                return t("recorder.dedup_skip", event.lang)
+            cat_label = category_label(category, event.lang)
             summary = classification.get("summary", "")
-            reply = f"已更新今日「{cat_label}」(#{row_id})。"
+            reply = t("recorder.text_updated", event.lang, cat=cat_label, id=row_id)
             if summary and summary != text[:50]:
                 reply += f"\n📝 {summary}"
-            reply += f"\n\n有误？发送 /recorder_del {row_id}"
+            reply += t("recorder.delete_hint", event.lang, id=row_id)
             return reply
 
         row_id = await _insert_message(db, user_id, msg_type, text, category, metadata)
         if row_id is None:
-            return "这条消息刚刚已经记录过了，不会重复保存。"
+            return t("recorder.dedup_skip", event.lang)
 
-        cat_label = CATEGORY_LABELS.get(category, "记录")
+        cat_label = category_label(category, event.lang)
         summary = classification.get("summary", "")
-        reply = f"已记录到今日「{cat_label}」(#{row_id})。"
+        reply = t("recorder.text_recorded", event.lang, cat=cat_label, id=row_id)
         if summary and summary != text[:50]:
             reply += f"\n📝 {summary}"
         if url_summary:
-            reply += f"\n\n🔗 链接摘要：\n{url_summary}"
+            reply += t("recorder.url_summary_label", event.lang, summary=url_summary)
         else:
-            reply += "\n\n有更多想补充的吗？"
-        reply += f"\n\n有误？发送 /recorder_del {row_id}"
+            reply += t("recorder.text_more_prompt", event.lang)
+        reply += t("recorder.delete_hint", event.lang, id=row_id)
         return reply
 
     return handle_text
@@ -126,7 +122,18 @@ def _make_photo_handler(ctx: object):
         caption = event.caption or ""
 
         image_bytes = await bot.download_file(file_id)
-        meta: dict = {"file_id": file_id, "size": len(image_bytes)}
+
+        # Dedup by image content hash — same image within 30 minutes
+        img_hash = hashlib.sha256(image_bytes).hexdigest()[:16]
+        dup = await db.conn.execute(
+            "SELECT id FROM messages WHERE user_id = ? AND msg_type = 'photo' "
+            "AND metadata LIKE ? AND deleted_at IS NULL "
+            "AND created_at > datetime('now', '-30 minutes')",
+            (user_id, f'%"hash": "{img_hash}"%'),
+        )
+        if await dup.fetchone():
+            return t("recorder.dedup_skip", event.lang)
+        meta: dict = {"file_id": file_id, "size": len(image_bytes), "hash": img_hash}
         analysis = ""
 
         local_path = _save_media(image_bytes, "jpg")
@@ -134,19 +141,21 @@ def _make_photo_handler(ctx: object):
             meta["local_path"] = local_path
 
         if llm.supports("vision"):
-            analysis = await llm.analyze_image(image_bytes, prompt=caption)
+            analysis = await llm.analyze_image(image_bytes, prompt=caption, lang=event.lang)
             meta["vision_analysis"] = analysis
 
         metadata = json.dumps(meta, ensure_ascii=False)
-        content = caption or analysis or "[图片]"
+        content = caption or analysis or t("recorder.media_placeholder.photo", event.lang)
         row_id = await _insert_message(db, user_id, "photo", content, None, metadata)
+        if row_id is None:
+            return t("recorder.dedup_skip", event.lang)
 
-        reply = f"📷 图片已记录 (#{row_id})。"
+        reply = t("recorder.photo_recorded", event.lang, id=row_id)
         if caption:
-            reply += f"\n备注: {caption}"
+            reply += t("recorder.photo_note", event.lang, caption=caption)
         if analysis:
-            reply += f"\n\n🔍 图片理解：\n{analysis}"
-        reply += f"\n\n有误？发送 /recorder_del {row_id}"
+            reply += t("recorder.photo_analysis", event.lang, analysis=analysis)
+        reply += t("recorder.delete_hint", event.lang, id=row_id)
         return reply
 
     return handle_photo
@@ -171,10 +180,12 @@ def _make_voice_handler(ctx: object):
             meta["local_path"] = local_path
 
         metadata = json.dumps(meta, ensure_ascii=False)
-        row_id = await _insert_message(db, user_id, "voice", "[语音消息]", None, metadata)
+        row_id = await _insert_message(
+            db, user_id, "voice", t("recorder.media_placeholder.voice", event.lang), None, metadata,
+        )
 
-        reply = f"🎤 语音已记录 (#{row_id})。"
-        reply += f"\n\n有误？发送 /recorder_del {row_id}"
+        reply = t("recorder.voice_recorded", event.lang, id=row_id)
+        reply += t("recorder.delete_hint", event.lang, id=row_id)
         return reply
 
     return handle_voice
@@ -200,13 +211,13 @@ def _make_video_handler(ctx: object):
             meta["local_path"] = local_path
 
         metadata = json.dumps(meta, ensure_ascii=False)
-        content = caption or "[视频]"
+        content = caption or t("recorder.media_placeholder.video", event.lang)
         row_id = await _insert_message(db, user_id, "video", content, None, metadata)
 
-        reply = f"🎬 视频已记录 (#{row_id})。"
+        reply = t("recorder.video_recorded", event.lang, id=row_id)
         if caption:
-            reply += f"\n备注: {caption}"
-        reply += f"\n\n有误？发送 /recorder_del {row_id}"
+            reply += t("recorder.video_note", event.lang, caption=caption)
+        reply += t("recorder.delete_hint", event.lang, id=row_id)
         return reply
 
     return handle_video

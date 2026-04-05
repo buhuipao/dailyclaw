@@ -5,6 +5,11 @@ import logging
 from datetime import datetime
 from typing import TYPE_CHECKING
 
+from src.core.i18n import t
+from src.core.i18n.shared import category_label
+
+import src.plugins.journal.locale  # noqa: F401
+
 if TYPE_CHECKING:
     from src.core.bot import Event
     from src.core.context import AppContext
@@ -32,7 +37,7 @@ async def cmd_journal_start(event: "Event") -> str:
     user_id = event.user_id
 
     if user_id in _sessions:
-        return "你已经有一个正在进行的反思。请继续回答，或发送 /journal_cancel 取消。"
+        return t("journal.already_in_session", event.lang)
 
     journal_db = JournalDB(ctx.db)
     engine = JournalEngine(
@@ -40,6 +45,7 @@ async def cmd_journal_start(event: "Event") -> str:
         llm=ctx.llm,
         user_id=user_id,
         date=_get_today(ctx),
+        lang=event.lang,
     )
     _sessions[user_id] = engine
     return await engine.start()
@@ -53,17 +59,11 @@ async def cmd_journal_today(event: "Event") -> str:
     entries = await journal_db.get_journal_entries(event.user_id, _get_today(ctx))
 
     if not entries:
-        return "今天还没有反思记录。发送 /journal_start 开始吧！"
+        return t("journal.today_empty", event.lang)
 
-    category_labels = {
-        "morning": "晨起",
-        "reading": "所阅",
-        "social": "待人接物",
-        "reflection": "反省",
-    }
-    lines = [f"📝 今日反思 ({_get_today(ctx)}):\n"]
+    lines = [t("journal.today_header", event.lang, date=_get_today(ctx))]
     for entry in entries:
-        label = category_labels.get(entry["category"], entry["category"])
+        label = category_label(entry["category"], event.lang)
         lines.append(f"【{label}】{entry['content']}")
     return "\n".join(lines)
 
@@ -72,11 +72,18 @@ async def cmd_journal_cancel(event: "Event") -> str:
     user_id = event.user_id
     if user_id in _sessions:
         del _sessions[user_id]
-        return "已取消当前反思。随时可以用 /journal_start 重新开始。"
-    return "没有进行中的反思。"
+        return t("journal.cancelled", event.lang)
+    return t("journal.no_session", event.lang)
 
 
-async def journal_answer_handler(event: "Event") -> str | None:
+async def journal_answer_handler(event: "Event") -> str | tuple[str, bool] | None:
+    """Conversation state handler.
+
+    Returns:
+        None          — not in a session, pass through
+        str           — reply text, stay in conversation
+        (str, True)   — reply text, then end conversation
+    """
     user_id = event.user_id
     engine = _sessions.get(user_id)
     if engine is None:
@@ -87,5 +94,6 @@ async def journal_answer_handler(event: "Event") -> str | None:
 
     if engine.is_complete:  # type: ignore[union-attr]
         del _sessions[user_id]
+        return (response, True)
 
     return response

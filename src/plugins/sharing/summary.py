@@ -3,19 +3,12 @@ from __future__ import annotations
 
 import logging
 
+from src.core.i18n import t
+from src.core.i18n.shared import category_label, period_label
+
+import src.plugins.sharing.locale  # noqa: F401
+
 logger = logging.getLogger(__name__)
-
-PERIOD_LABELS: dict[str, str] = {
-    "week": "本周",
-    "month": "本月",
-}
-
-CATEGORY_LABELS: dict[str, str] = {
-    "morning": "晨起",
-    "reading": "所阅",
-    "social": "待人接物",
-    "reflection": "反省",
-}
 
 
 async def generate_summary(
@@ -25,6 +18,7 @@ async def generate_summary(
     period_type: str,
     start_date: str,
     end_date: str,
+    lang: str = "zh",
 ) -> str:
     """Generate and save a summary for the given period.
 
@@ -32,13 +26,13 @@ async def generate_summary(
     Both tables are owned by the journal plugin's migrations.
     """
     entries = await _get_journal_range(db, user_id, start_date, end_date)
-    period_label = PERIOD_LABELS.get(period_type, period_type)
+    period_lbl = period_label(period_type, lang)
 
     if not entries:
-        return f"{period_label}没有记录。开始用 /journal_start 记录每天的反思吧！"
+        return t("sharing.no_entries", lang, period=period_lbl)
 
     entry_text = "\n".join(
-        f"- {e['date']} [{CATEGORY_LABELS.get(e['category'], e['category'])}] {e['content'][:120]}"
+        f"- {e['date']} [{category_label(e['category'], lang)}] {e['content'][:120]}"
         for e in entries
     )
 
@@ -46,21 +40,15 @@ async def generate_summary(
         messages=[
             {
                 "role": "system",
-                "content": (
-                    f"你是 DailyClaw 的总结助手。请为用户生成{period_label}总结。\n"
-                    "包含：1) 整体评价 2) 做得好的地方 3) 需要改进的地方 4) 一句鼓励\n"
-                    "简洁有力，用中文，300字以内。"
-                ),
+                "content": t("sharing.summary_system_prompt", lang, period=period_lbl),
             },
             {
                 "role": "user",
-                "content": (
-                    f"时间范围：{start_date} ~ {end_date}\n\n"
-                    f"日记条目：\n{entry_text}"
-                ),
+                "content": f"{start_date} ~ {end_date}\n\n{entry_text}",
             },
         ],
         max_tokens=500,
+        lang=lang,
     )
 
     await _save_summary(db, user_id, period_type, start_date, end_date, response)

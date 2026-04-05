@@ -24,7 +24,10 @@ from src.core.bot import (
     MessageRef,
     MessageType,
 )
+from src.core.i18n import t
+from src.core.retry import with_retry
 from src.core.scheduler import Scheduler
+import src.adapters.locale  # noqa: F401  # register translations
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +43,7 @@ class DynamicAuthFilter:
     def __init__(self, admin_ids: list[int]) -> None:
         self._admin_ids: set[int] = set(admin_ids)
         self._db_users: set[int] = set()
+        self._user_langs: dict[int, str] = {}
 
     @property
     def admin_ids(self) -> set[int]:
@@ -47,6 +51,12 @@ class DynamicAuthFilter:
 
     def update_cache(self, user_ids: set[int]) -> None:
         self._db_users = set(user_ids)
+
+    def update_lang_cache(self, user_langs: dict[int, str]) -> None:
+        self._user_langs = dict(user_langs)
+
+    def get_lang(self, user_id: int) -> str:
+        return self._user_langs.get(user_id, "en")
 
     def is_authorized(self, user_id: int) -> bool:
         return user_id in self._admin_ids or user_id in self._db_users
@@ -123,6 +133,7 @@ def _build_event(update: Update, auth: DynamicAuthFilter) -> Event | None:
     user_id = user.id
     chat_id = chat.id
     is_admin = user_id in auth.admin_ids
+    lang = auth.get_lang(user_id)
 
     return Event(
         user_id=user_id,
@@ -133,6 +144,7 @@ def _build_event(update: Update, auth: DynamicAuthFilter) -> Event | None:
         video_file_id=msg.video.file_id if msg.video else None,
         caption=msg.caption,
         is_admin=is_admin,
+        lang=lang,
         raw=update,
     )
 
@@ -209,7 +221,7 @@ class TelegramAdapter(BotAdapter):
             cmd_text = (update.effective_message.text or "").split()[0]
 
             async def _handler(e: Event) -> str:
-                return f"❓ 命令 {cmd_text} 不存在\n\n发送 /help 查看所有可用命令"
+                return t("adapter.unknown_command", event.lang, cmd=cmd_text)
 
             await _ack_and_dispatch(_handler, event, update, adapter_self._db, "/unknown")
 
@@ -253,22 +265,26 @@ class TelegramAdapter(BotAdapter):
     # Messaging
     # ------------------------------------------------------------------
 
+    @with_retry(max_retries=3, delay=0.5)
     async def send_message(self, chat_id: int, text: str) -> MessageRef:
         bot = self._get_bot()
         msg = await bot.send_message(chat_id=chat_id, text=text)
         return MessageRef(chat_id=chat_id, message_id=msg.message_id)
 
+    @with_retry(max_retries=2, delay=0.5)
     async def edit_message(self, chat_id: int, message_id: int, text: str) -> None:
         bot = self._get_bot()
         await bot.edit_message_text(
             chat_id=chat_id, message_id=message_id, text=text
         )
 
+    @with_retry(max_retries=3, delay=0.5)
     async def reply(self, event: Event, text: str) -> MessageRef:
         bot = self._get_bot()
         msg = await bot.send_message(chat_id=event.chat_id, text=text)
         return MessageRef(chat_id=event.chat_id, message_id=msg.message_id)
 
+    @with_retry(max_retries=3, delay=1.0)
     async def download_file(self, file_id: str) -> bytes:
         bot = self._get_bot()
         tg_file = await bot.get_file(file_id)
@@ -293,7 +309,9 @@ class TelegramAdapter(BotAdapter):
                 return
             if cmd.admin_only and not event.is_admin:
                 if update.effective_message:
-                    await update.effective_message.reply_text("⛔ 无权限")
+                    await update.effective_message.reply_text(
+                        t("adapter.no_permission", event.lang)
+                    )
                 return
             # Strip the /command prefix — event.text should only contain arguments.
             # e.g. "/planner_add 每天学雅思" → "每天学雅思", "/help" → None
@@ -307,6 +325,7 @@ class TelegramAdapter(BotAdapter):
                 video_file_id=event.video_file_id,
                 caption=event.caption,
                 is_admin=event.is_admin,
+                lang=event.lang,
                 raw=event.raw,
             )
             await _ack_and_dispatch(cmd.handler, event, update, db, f"/{cmd.name}")
@@ -328,17 +347,53 @@ class TelegramAdapter(BotAdapter):
     def _build_conversation_handler(self, conv: ConversationFlow) -> ConversationHandler:
         auth = self._auth
 
+        async def _entry(update: Update, context: Any) -> int:
+            """Entry point: run entry_handler, send reply, enter state 0."""
+            event = _build_event(update, auth)
+            if event is None:
+                return _END
+            # Strip command prefix — same logic as _make_command_handler
+            args_text = " ".join(context.args) if context.args else None
+            event = Event(
+                user_id=event.user_id,
+                chat_id=event.chat_id,
+                text=args_text,
+                photo_file_id=event.photo_file_id,
+                voice_file_id=event.voice_file_id,
+                video_file_id=event.video_file_id,
+                caption=event.caption,
+                is_admin=event.is_admin,
+                lang=event.lang,
+                raw=event.raw,
+            )
+            result = await conv.entry_handler(event)
+            if isinstance(result, str) and update.effective_message:
+                await update.effective_message.reply_text(result)
+                return 0
+            return _END
+
         def _wrap_state(fn: Callable):
-            async def _inner(update: Update, context: Any) -> int | None:
+            async def _inner(update: Update, context: Any) -> int:
                 event = _build_event(update, auth)
                 if event is None:
-                    return None
+                    return _END
                 result = await fn(event)
-                return result
+                if result is None:
+                    return _END
+                # Tuple (text, True) → send reply and end conversation
+                if isinstance(result, tuple):
+                    text, end = result
+                    if update.effective_message:
+                        await update.effective_message.reply_text(text)
+                    return _END if end else 0
+                # Plain string → send reply, stay in conversation
+                if isinstance(result, str) and update.effective_message:
+                    await update.effective_message.reply_text(result)
+                return 0
 
             return _inner
 
-        entry = CommandHandler(conv.entry_command, _wrap_state(list(conv.states.values())[0]))
+        entry_points = [CommandHandler(conv.entry_command, _entry)]
         states = {
             state_key: [TgMessageHandler(filters.TEXT & ~filters.COMMAND, _wrap_state(fn))]
             for state_key, fn in conv.states.items()
@@ -346,7 +401,7 @@ class TelegramAdapter(BotAdapter):
         cancel = CommandHandler(conv.cancel_command, lambda u, c: _END)
 
         return ConversationHandler(
-            entry_points=[entry],
+            entry_points=entry_points,
             states=states,
             fallbacks=[cancel],
             name=conv.name,
@@ -366,9 +421,6 @@ class TelegramAdapter(BotAdapter):
 # ---------------------------------------------------------------------------
 # ACK-first dispatch — enqueue, ACK, process async
 # ---------------------------------------------------------------------------
-
-_ACK_PROCESSING = "⏳ 收到，正在处理..."
-
 
 async def _enqueue_to_db(db: Any, user_id: int, chat_id: int, msg_type: str, payload: str) -> int | None:
     """Save to message_queue for reliability. Returns queue ID or None if db unavailable."""
@@ -434,14 +486,21 @@ async def _ack_and_dispatch(
     queue_id = await _enqueue_to_db(db, user_id, chat_id, label, payload)
     logger.info("[%s] user=%d queue_id=%s", label, user_id, queue_id)
 
-    # 2. Send ACK (best effort)
+    # 2. Send ACK (with retry)
     ack_msg_id: int | None = None
     if msg:
+        ack_text = t("adapter.ack_processing", event.lang)
+
+        @with_retry(max_retries=2, delay=0.5)
+        async def _send_ack() -> int:
+            ack = await msg.reply_text(ack_text)
+            return ack.message_id
+
         try:
-            ack = await msg.reply_text(_ACK_PROCESSING)
-            ack_msg_id = ack.message_id
+            ack_msg_id = await _send_ack()
+            logger.debug("[ack] sent msg_id=%d for user=%d", ack_msg_id, user_id)
         except Exception:
-            logger.debug("ACK send failed for user=%d", user_id)
+            logger.warning("[ack] failed for user=%d after retries", user_id)
 
     # 3. Process in background
     asyncio.create_task(
@@ -460,39 +519,77 @@ async def _bg_process(
 ) -> None:
     """Background: run handler, edit ACK with result, mark queue done/failed."""
     bot = update.get_bot()
+
+    # Retry-wrapped helpers for raw bot API calls inside this background task
+    @with_retry(max_retries=3, delay=0.5)
+    async def _bot_send(text: str) -> Any:
+        return await bot.send_message(chat_id=chat_id, text=text)
+
+    @with_retry(max_retries=3, delay=0.5)
+    async def _bot_send_photo(photo: bytes, caption: str | None) -> Any:
+        return await bot.send_photo(chat_id=chat_id, photo=photo, caption=caption)
+
     try:
         result = await handler(event)
         await _mark_queue_done(db, queue_id)
         logger.info("[done] user=%d queue_id=%s", event.user_id, queue_id)
     except Exception as exc:
         await _mark_queue_failed(db, queue_id, str(exc))
-        logger.warning("[fail] user=%d queue_id=%s: %s", event.user_id, queue_id, exc)
-        # Edit ACK to show retry message
+        logger.error(
+            "[fail] user=%d queue_id=%s: %s", event.user_id, queue_id, exc,
+            exc_info=True,
+        )
+        # Notify user of failure
+        fail_text = t("adapter.retry_fail", event.lang)
         if ack_msg_id:
             try:
                 await bot.edit_message_text(
-                    chat_id=chat_id, message_id=ack_msg_id,
-                    text="⏳ 处理暂时失败，稍后会自动重试。",
+                    chat_id=chat_id, message_id=ack_msg_id, text=fail_text,
                 )
+            except Exception:
+                try:
+                    await _bot_send(fail_text)
+                except Exception:
+                    pass
+        else:
+            try:
+                await _bot_send(fail_text)
             except Exception:
                 pass
         return
 
-    # Handler returned a string → edit ACK with the result
+    # Handler returned a dict with photo → send photo, delete ACK
+    if isinstance(result, dict) and "photo" in result:
+        try:
+            await _bot_send_photo(result["photo"], result.get("caption"))
+        except Exception:
+            logger.error("Failed to send photo to chat=%d after retries", chat_id)
+        if ack_msg_id:
+            try:
+                await bot.delete_message(chat_id=chat_id, message_id=ack_msg_id)
+            except Exception:
+                pass
+        return
+
+    # Handler returned a string → edit ACK or send new message
     if isinstance(result, str):
+        delivered = False
         if ack_msg_id:
             try:
                 await bot.edit_message_text(
                     chat_id=chat_id, message_id=ack_msg_id, text=result,
                 )
-                return
+                delivered = True
             except Exception:
-                pass
-        # Fallback: send new message
-        try:
-            await bot.send_message(chat_id=chat_id, text=result)
-        except Exception:
-            logger.warning("Failed to send reply to chat=%d", chat_id)
+                logger.debug("[reply] edit ACK failed, falling back to send_message",
+                             exc_info=True)
+
+        if not delivered:
+            try:
+                await _bot_send(result)
+            except Exception:
+                logger.error("Failed to deliver reply to chat=%d: %.80s",
+                             chat_id, result)
     elif ack_msg_id:
         # Handler returned None (managed its own reply) — delete the framework ACK
         try:

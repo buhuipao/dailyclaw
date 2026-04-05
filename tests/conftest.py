@@ -51,6 +51,7 @@ class FakeLLMService:
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
+        lang: str = "en",
     ) -> str:
         self.calls.append(messages)
         if self._call_index < len(self._responses):
@@ -59,7 +60,7 @@ class FakeLLMService:
             return resp
         return "default LLM response"
 
-    async def analyze_image(self, image_bytes: bytes, prompt: str = "") -> str:
+    async def analyze_image(self, image_bytes: bytes, prompt: str = "", lang: str = "en") -> str:
         self.image_calls.append({"image_bytes": image_bytes, "prompt": prompt})
         if self._call_index < len(self._responses):
             resp = self._responses[self._call_index]
@@ -67,16 +68,16 @@ class FakeLLMService:
             return resp
         return "default vision response"
 
-    async def classify(self, text: str) -> dict[str, str]:
+    async def classify(self, text: str, lang: str = "en") -> dict[str, str]:
         return {"category": "other", "summary": text[:50], "tags": ""}
 
-    async def summarize_text(self, text: str, url: str = "") -> str:
+    async def summarize_text(self, text: str, url: str = "", lang: str = "en") -> str:
         return "default summary"
 
-    async def parse_plan(self, text: str) -> dict[str, str]:
+    async def parse_plan(self, text: str, lang: str = "en") -> dict[str, str]:
         return {"tag": "test", "name": text[:20], "schedule": "daily", "remind_time": "20:00"}
 
-    async def match_checkin(self, text: str, plans: list[dict[str, str]]) -> dict[str, str]:
+    async def match_checkin(self, text: str, plans: list[dict[str, str]], lang: str = "en") -> dict[str, str]:
         tag = plans[0]["tag"] if plans else ""
         return {"tag": tag, "note": text, "duration_minutes": 0}
 

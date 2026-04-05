@@ -23,6 +23,7 @@ class Event:
     video_file_id: str | None = None
     caption: str | None = None
     is_admin: bool = False
+    lang: str = "en"
     raw: Any = None
 
 
@@ -53,6 +54,7 @@ class MessageHandler:
 class ConversationFlow:
     name: str
     entry_command: str
+    entry_handler: Callable[[Event], Awaitable[str | None]]
     states: dict[int, Callable]
     cancel_command: str = "cancel"
 

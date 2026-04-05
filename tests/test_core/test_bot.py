@@ -134,6 +134,7 @@ class TestConversationFlow:
         flow = ConversationFlow(
             name="onboarding",
             entry_command="start",
+            entry_handler=_dummy_handler,
             states={0: _dummy_handler},
         )
         assert flow.cancel_command == "cancel"
@@ -142,6 +143,7 @@ class TestConversationFlow:
         flow = ConversationFlow(
             name="onboarding",
             entry_command="start",
+            entry_handler=_dummy_handler,
             states={0: _dummy_handler},
             cancel_command="quit",
         )
@@ -151,6 +153,7 @@ class TestConversationFlow:
         flow = ConversationFlow(
             name="onboarding",
             entry_command="start",
+            entry_handler=_dummy_handler,
             states={0: _dummy_handler},
         )
         with pytest.raises(dataclasses.FrozenInstanceError):

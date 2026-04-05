@@ -9,6 +9,10 @@ from __future__ import annotations
 import json
 import logging
 
+from src.core.i18n import t
+
+import src.plugins.recorder.locale  # noqa: F401
+
 logger = logging.getLogger(__name__)
 
 MAX_RETRY_ATTEMPTS = 10
@@ -60,19 +64,19 @@ async def _retry_one(db: object, llm: object, bot: object, msg: dict) -> None:
         if row_id:
             await bot.send_message(
                 msg["chat_id"],
-                f"✅ 之前失败的消息已处理完成 (#{row_id})。",
+                t("recorder.retry_done", "zh", id=row_id),
             )
     elif msg_type in ("photo", "voice", "video"):
         # Media: file URL may have expired, save placeholder
         from .handlers import _insert_message
-        type_label = {"photo": "图片", "voice": "语音", "video": "视频"}.get(msg_type, "消息")
-        content = payload.get("caption") or payload.get("text") or f"[{type_label}，补录]"
+        type_label = t(f"recorder.retry_type.{msg_type}", "zh")
+        content = payload.get("caption") or payload.get("text") or t("recorder.retry_backfill", "zh", type=type_label)
         metadata = json.dumps(payload, ensure_ascii=False)
         row_id = await _insert_message(db, msg["user_id"], msg_type, content, None, metadata)
         if row_id:
             await bot.send_message(
                 msg["chat_id"],
-                f"✅ 之前失败的{type_label}已补录 (#{row_id})。",
+                t("recorder.retry_media_done", "zh", type=type_label, id=row_id),
             )
     else:
         # Command or unknown type — just mark done, can't meaningfully retry

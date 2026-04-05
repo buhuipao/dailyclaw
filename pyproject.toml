@@ -20,6 +20,7 @@ dependencies = [
     "httpx[socks]>=0.27",
     "readability-lxml>=0.8",
     "lxml_html_clean>=0.4",
+    "Pillow>=10.0",
 ]
 
 [project.optional-dependencies]

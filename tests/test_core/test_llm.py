@@ -147,7 +147,7 @@ class TestChatStreaming:
         call_kwargs = mock_create.call_args
         messages_sent = call_kwargs.kwargs["messages"]
         system_msg = next(m for m in messages_sent if m["role"] == "system")
-        assert "安全规则" in system_msg["content"]
+        assert "Safety rules" in system_msg["content"]
         assert system_msg["content"].startswith("You are a helper.")
 
     @pytest.mark.asyncio

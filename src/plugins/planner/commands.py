@@ -6,6 +6,9 @@ from collections.abc import Callable, Awaitable
 from datetime import datetime, timedelta
 
 from src.core.bot import Command, Event
+from src.core.i18n import t
+
+import src.plugins.planner.locale  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -23,19 +26,15 @@ def make_commands(ctx) -> list[Command]:
 def _cmd_planner_add(ctx) -> Callable[[Event], Awaitable[str | None]]:
     async def handler(event: Event) -> str | None:
         if not event.text:
-            return (
-                "用法: /planner_add <描述>\n"
-                "例如: /planner_add 每天学雅思，晚上8点提醒\n"
-                "例如: /planner_add 每周一三五锻炼，7点提醒"
-            )
+            return t("planner.add_usage", event.lang)
 
         db = ctx.db
         llm = ctx.llm
         user_id = event.user_id
 
-        parsed = await llm.parse_plan(event.text)
+        parsed = await llm.parse_plan(event.text, lang=event.lang)
         if not parsed.get("tag") or not parsed.get("name"):
-            return "没有理解你的计划，请再描述一下？"
+            return t("planner.add_parse_fail", event.lang)
 
         tag = parsed["tag"]
         name = parsed["name"]
@@ -48,7 +47,7 @@ def _cmd_planner_add(ctx) -> Callable[[Event], Awaitable[str | None]]:
             (user_id, tag),
         )
         if await cursor.fetchone() is not None:
-            return f"已存在同名计划 [{tag}]，请换个描述或先 /planner_del 旧的。"
+            return t("planner.add_duplicate", event.lang, tag=tag)
 
         await db.conn.execute(
             "INSERT INTO plans (user_id, tag, name, schedule, remind_time) VALUES (?, ?, ?, ?, ?)",
@@ -56,14 +55,8 @@ def _cmd_planner_add(ctx) -> Callable[[Event], Awaitable[str | None]]:
         )
         await db.conn.commit()
 
-        schedule_label = "每天" if schedule == "daily" else f"每周 {schedule}"
-        return (
-            f"已创建计划「{name}」\n"
-            f"标签: {tag}\n"
-            f"频率: {schedule_label}\n"
-            f"提醒: {remind_time}\n\n"
-            f"用自然语言打卡: /planner_checkin 今天练了30分钟听力"
-        )
+        schedule_label = _format_schedule(schedule, event.lang)
+        return t("planner.add_success", event.lang, name=name, tag=tag, schedule=schedule_label, remind=remind_time)
 
     return handler
 
@@ -71,7 +64,7 @@ def _cmd_planner_add(ctx) -> Callable[[Event], Awaitable[str | None]]:
 def _cmd_planner_del(ctx) -> Callable[[Event], Awaitable[str | None]]:
     async def handler(event: Event) -> str | None:
         if not event.text:
-            return "用法: /planner_del <计划名称或标签>"
+            return t("planner.del_usage", event.lang)
 
         db = ctx.db
         llm = ctx.llm
@@ -85,7 +78,7 @@ def _cmd_planner_del(ctx) -> Callable[[Event], Awaitable[str | None]]:
         rows = await cursor.fetchall()
 
         if not rows:
-            return "你还没有任何计划。"
+            return t("planner.del_no_plans", event.lang)
 
         plans = [{"tag": r[0], "name": r[1]} for r in rows]
 
@@ -100,13 +93,13 @@ def _cmd_planner_del(ctx) -> Callable[[Event], Awaitable[str | None]]:
 
         if not matched_tag:
             # LLM semantic match
-            result = await llm.match_checkin(text, plans)
+            result = await llm.match_checkin(text, plans, lang=event.lang)
             matched_tag = result.get("tag", "")
             matched_name = next((p["name"] for p in plans if p["tag"] == matched_tag), "")
 
         if not matched_tag or not matched_name:
             plan_list = "\n".join(f"  • {p['name']} [{p['tag']}]" for p in plans)
-            return f"没有匹配到计划。你的计划：\n{plan_list}"
+            return t("planner.del_no_match", event.lang, list=plan_list)
 
         result = await db.conn.execute(
             "UPDATE plans SET active = 0 WHERE user_id = ? AND tag = ? AND active = 1",
@@ -115,8 +108,8 @@ def _cmd_planner_del(ctx) -> Callable[[Event], Awaitable[str | None]]:
         await db.conn.commit()
 
         if result.rowcount and result.rowcount > 0:
-            return f"已归档计划「{matched_name}」[{matched_tag}]"
-        return f"未找到活跃的计划 [{matched_tag}]"
+            return t("planner.del_success", event.lang, name=matched_name, tag=matched_tag)
+        return t("planner.del_not_found", event.lang, tag=matched_tag)
 
     return handler
 
@@ -124,11 +117,7 @@ def _cmd_planner_del(ctx) -> Callable[[Event], Awaitable[str | None]]:
 def _cmd_planner_checkin(ctx) -> Callable[[Event], Awaitable[str | None]]:
     async def handler(event: Event) -> str | None:
         if not event.text:
-            return (
-                "用法: /planner_checkin <描述>\n"
-                "例如: /planner_checkin 今天练了半小时雅思听力\n"
-                "例如: /planner_checkin 跑了5公里"
-            )
+            return t("planner.checkin_usage", event.lang)
 
         db = ctx.db
         llm = ctx.llm
@@ -143,12 +132,12 @@ def _cmd_planner_checkin(ctx) -> Callable[[Event], Awaitable[str | None]]:
         rows = await cursor.fetchall()
 
         if not rows:
-            return "你还没有计划。用 /planner_add 创建一个吧！"
+            return t("planner.checkin_no_plans", event.lang)
 
         plans = [{"tag": r[0], "name": r[1]} for r in rows]
 
         # LLM semantic match
-        result = await llm.match_checkin(event.text, plans)
+        result = await llm.match_checkin(event.text, plans, lang=event.lang)
         tag = result.get("tag", "")
         note = result.get("note", event.text)
         duration = int(result.get("duration_minutes", 0))
@@ -156,7 +145,7 @@ def _cmd_planner_checkin(ctx) -> Callable[[Event], Awaitable[str | None]]:
         matched_plan = next((p for p in plans if p["tag"] == tag), None)
         if not matched_plan:
             plan_names = ", ".join(f"「{p['name']}」" for p in plans)
-            return f"没有匹配到计划。你的计划有：{plan_names}\n请再描述一下？"
+            return t("planner.checkin_no_match", event.lang, names=plan_names)
 
         await db.conn.execute(
             "INSERT INTO plan_checkins (user_id, tag, date, note, duration_minutes) VALUES (?, ?, ?, ?, ?)",
@@ -174,16 +163,33 @@ def _cmd_planner_checkin(ctx) -> Callable[[Event], Awaitable[str | None]]:
         week_rows = await cursor.fetchall()
         unique_days = len(week_rows)
 
-        reply = f"已打卡：{matched_plan['name']}"
+        reply = t("planner.checkin_success", event.lang, name=matched_plan['name'])
         if note:
             reply += f" - {note}"
         if duration:
-            reply += f" ({duration}分钟)"
-        reply += f"\n本周已打卡 {unique_days} 天"
+            reply += f" ({t('planner.minutes', event.lang, n=duration)})"
+        reply += t("planner.checkin_week_count", event.lang, count=unique_days)
 
         return reply
 
     return handler
+
+
+_DAYS_MAP = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
+_DAY_KEYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+
+_JOINER: dict[str, str] = {"zh": "、", "en": ", ", "ja": "・"}
+
+
+def _format_schedule(schedule: str, lang: str = "zh") -> str:
+    if schedule == "daily":
+        return t("shared.daily", lang)
+    parts = [d.strip() for d in schedule.split(",") if d.strip() in _DAYS_MAP]
+    if parts:
+        joiner = _JOINER.get(lang, "、")
+        day_names = joiner.join(t(f"shared.day.{d}", lang) for d in parts)
+        return t("shared.weekly_prefix", lang) + day_names
+    return schedule
 
 
 def _cmd_planner_list(ctx) -> Callable[[Event], Awaitable[str | None]]:
@@ -196,20 +202,20 @@ def _cmd_planner_list(ctx) -> Callable[[Event], Awaitable[str | None]]:
         week_start = (now - timedelta(days=now.weekday())).strftime("%Y-%m-%d")
 
         cursor = await db.conn.execute(
-            "SELECT tag, name, schedule FROM plans WHERE user_id = ? AND active = 1",
+            "SELECT tag, name, schedule, remind_time FROM plans WHERE user_id = ? AND active = 1",
             (user_id,),
         )
         rows = await cursor.fetchall()
 
         if not rows:
-            return "还没有计划。用 /planner_add 创建一个吧！"
+            return t("planner.list_empty", event.lang)
 
-        days_map = {"mon": 0, "tue": 1, "wed": 2, "thu": 3, "fri": 4, "sat": 5, "sun": 6}
-        lines = ["计划进度\n"]
+        lines = [t("planner.list_header", event.lang)]
 
         for row in rows:
-            tag, name, schedule = row[0], row[1], row[2]
+            tag, name, schedule, remind_time = row[0], row[1], row[2], row[3]
 
+            # Weekly progress
             checkin_cursor = await db.conn.execute(
                 "SELECT DISTINCT date FROM plan_checkins WHERE user_id = ? AND tag = ? AND date >= ? AND date <= ?",
                 (user_id, tag, week_start, today),
@@ -220,12 +226,39 @@ def _cmd_planner_list(ctx) -> Callable[[Event], Awaitable[str | None]]:
             if schedule == "daily":
                 expected = now.weekday() + 1
             else:
-                scheduled_days = [days_map[d.strip()] for d in schedule.split(",") if d.strip() in days_map]
+                scheduled_days = [_DAYS_MAP[d.strip()] for d in schedule.split(",") if d.strip() in _DAYS_MAP]
                 expected = sum(1 for d in scheduled_days if d <= now.weekday())
 
             bar = "🟩" * unique_days + "⬜" * max(0, expected - unique_days)
-            lines.append(f"📌 {name}\n   {bar} {unique_days}/{expected}")
 
-        return "\n".join(lines)
+            # Recent check-ins (last 3)
+            recent_cursor = await db.conn.execute(
+                "SELECT date, note, duration_minutes FROM plan_checkins "
+                "WHERE user_id = ? AND tag = ? ORDER BY date DESC, rowid DESC LIMIT 3",
+                (user_id, tag),
+            )
+            recent_rows = await recent_cursor.fetchall()
+
+            schedule_label = _format_schedule(schedule, event.lang)
+            lines.append(f"📌 {name} [{tag}]")
+            lines.append(t("planner.list_frequency", event.lang, schedule=schedule_label, remind=remind_time))
+            lines.append(t("planner.list_week_bar", event.lang, bar=bar, done=unique_days, expected=expected))
+
+            if recent_rows:
+                lines.append(t("planner.list_recent_header", event.lang))
+                for r in recent_rows:
+                    date_str, note, duration = r[0], r[1], r[2]
+                    entry = f"     {date_str}"
+                    if note:
+                        entry += f" — {note}"
+                    if duration:
+                        entry += f" ({t('planner.minutes', event.lang, n=duration)})"
+                    lines.append(entry)
+            else:
+                lines.append(t("planner.list_no_checkins", event.lang))
+
+            lines.append("")  # blank line between plans
+
+        return "\n".join(lines).rstrip()
 
     return handler

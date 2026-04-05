@@ -11,15 +11,37 @@ from .adapters.telegram import TelegramAdapter
 from .config import load_config
 from .core.bot import Command, Event
 from .core.db import Database, MigrationRunner
+from .core.i18n import t, SUPPORTED_LANGS
 from .core.llm import Capability, LLMProvider, LLMService
 from .core.plugin import PluginRegistry
 
+import src.main_locale  # noqa: F401
+
+# Initial logging setup — reconfigured in main() after config is loaded
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
+    level=logging.DEBUG,
 )
 logging.getLogger("apscheduler.executors.default").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("openai").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
+
+
+def _configure_logging(config: dict) -> None:
+    """Set log level from config > env var > default (DEBUG).
+
+    config.yaml example:
+        log_level: INFO
+    """
+    level_str = (
+        config.get("log_level")
+        or os.environ.get("LOG_LEVEL")
+        or "DEBUG"
+    ).upper()
+    level = getattr(logging, level_str, logging.DEBUG)
+    logging.getLogger().setLevel(level)
+    logger.info("Log level: %s", level_str)
 
 # Directory where plugins live (relative to this file's package)
 _PLUGINS_DIR = str(Path(__file__).parent / "plugins")
@@ -66,86 +88,122 @@ _PLUGIN_EMOJI: dict[str, str] = {
 }
 
 
-def _generate_help_text(plugins: list) -> str:
+def _generate_help_text(plugins: list, lang: str = "en") -> str:
     """Build /help text from all loaded plugin commands."""
-    lines: list[str] = ["🦉 *DailyClaw 指令列表*\n"]
+    lines: list[str] = [t("main.help_header", lang)]
     for plugin in plugins:
         cmds = plugin.get_commands()
         if not cmds:
             continue
         emoji = _PLUGIN_EMOJI.get(plugin.name, "📌")
-        lines.append(f"{emoji} *{plugin.description or plugin.name}*")
+        # Use localized plugin description from locale file
+        desc = t(f"{plugin.name}.description", lang)
+        # Fallback to plugin.description if no locale key found
+        if desc == f"{plugin.name}.description":
+            desc = plugin.description or plugin.name
+        lines.append(f"{emoji} *{desc}*")
         for cmd in cmds:
-            prefix = " (管理员)" if cmd.admin_only else ""
-            lines.append(f"  /{cmd.name} — {cmd.description}{prefix}")
+            # Use localized command description from locale file
+            cmd_key = cmd.name.replace(f"{plugin.name}_", "")
+            localized_desc = t(f"{plugin.name}.cmd.{cmd_key}", lang)
+            if localized_desc == f"{plugin.name}.cmd.{cmd_key}":
+                localized_desc = cmd.description
+            prefix = t("main.admin_suffix", lang) if cmd.admin_only else ""
+            lines.append(f"  /{cmd.name} — {localized_desc}{prefix}")
         lines.append("")
-    lines.append("🔑 *管理员*")
-    lines.append("  /invite <user_id> — 邀请用户")
-    lines.append("  /kick <user_id> — 踢出用户")
+    lines.append(t("main.help_admin_section", lang))
+    lines.append(t("main.help_invite", lang))
+    lines.append(t("main.help_kick", lang))
+    lines.append(t("main.help_lang", lang))
     lines.append("")
-    lines.append("💡 /start — 欢迎消息 | /help — 显示帮助")
+    lines.append(t("main.help_footer", lang))
     return "\n".join(lines)
 
 
 def _make_start_handler() -> Command:
     async def handler(event: Event) -> str:
-        return "欢迎使用 DailyClaw！发送 /help 查看指令列表。"
+        return t("main.welcome", event.lang)
 
-    return Command(name="start", description="欢迎消息", handler=handler)
+    return Command(name="start", description=t("main.cmd.start"), handler=handler)
 
 
-def _make_help_handler(help_text: str) -> Command:
+def _make_help_handlers(plugins: list) -> list[Command]:
     async def handler(event: Event) -> str:
-        return help_text
+        return _generate_help_text(plugins, event.lang)
 
-    return Command(name="help", description="显示帮助", handler=handler)
+    return [
+        Command(name="help", description=t("main.cmd.help"), handler=handler),
+        Command(name="h", description=t("main.cmd.help"), handler=handler),
+    ]
 
 
 def _make_invite_handler(db: Database) -> Command:
     async def handler(event: Event) -> str:
         if not event.text:
-            return "用法: /invite <user_id>"
+            return t("main.invite_usage", event.lang)
         parts = event.text.strip().split()
         # parts[0] is the command itself; user_id is the argument
         args = [p for p in parts if not p.startswith("/")]
         if not args:
-            return "用法: /invite <user_id>"
+            return t("main.invite_usage", event.lang)
         try:
             target_id = int(args[0])
         except ValueError:
-            return f"无效的 user_id: {args[0]}"
+            return t("main.invalid_user_id", event.lang, id=args[0])
         await db.conn.execute(
             "INSERT OR IGNORE INTO allowed_users (user_id, added_by) VALUES (?, ?)",
             (target_id, event.user_id),
         )
         await db.conn.commit()
         logger.info("User %d invited by admin %d", target_id, event.user_id)
-        return f"已邀请用户 {target_id}"
+        return t("main.invite_success", event.lang, id=target_id)
 
-    return Command(name="invite", description="邀请用户", handler=handler, admin_only=True)
+    return Command(name="invite", description=t("main.cmd.invite"), handler=handler, admin_only=True)
 
 
 def _make_kick_handler(db: Database) -> Command:
     async def handler(event: Event) -> str:
         if not event.text:
-            return "用法: /kick <user_id>"
+            return t("main.kick_usage", event.lang)
         parts = event.text.strip().split()
         args = [p for p in parts if not p.startswith("/")]
         if not args:
-            return "用法: /kick <user_id>"
+            return t("main.kick_usage", event.lang)
         try:
             target_id = int(args[0])
         except ValueError:
-            return f"无效的 user_id: {args[0]}"
+            return t("main.invalid_user_id", event.lang, id=args[0])
         await db.conn.execute(
             "DELETE FROM allowed_users WHERE user_id = ?",
             (target_id,),
         )
         await db.conn.commit()
         logger.info("User %d kicked by admin %d", target_id, event.user_id)
-        return f"已踢出用户 {target_id}"
+        return t("main.kick_success", event.lang, id=target_id)
 
-    return Command(name="kick", description="踢出用户", handler=handler, admin_only=True)
+    return Command(name="kick", description=t("main.cmd.kick"), handler=handler, admin_only=True)
+
+
+def _make_lang_handler(db: Database, adapter: TelegramAdapter) -> Command:
+    async def handler(event: Event) -> str:
+        text = (event.text or "").strip().lower()
+        if not text:
+            return t("main.lang_usage", event.lang, current=event.lang)
+        if text not in SUPPORTED_LANGS:
+            return t("main.lang_invalid", event.lang, lang=text)
+        await db.conn.execute(
+            "UPDATE allowed_users SET lang = ? WHERE user_id = ?",
+            (text, event.user_id),
+        )
+        await db.conn.commit()
+        # Refresh lang cache immediately so next message uses new lang
+        adapter._auth.update_lang_cache(
+            {**adapter._auth._user_langs, event.user_id: text}
+        )
+        lang_name = t(f"shared.lang_name.{text}", text)
+        return t("main.lang_success", text, lang_name=lang_name)
+
+    return Command(name="lang", description="Switch language / 切换语言 / 言語切替", handler=handler)
 
 
 async def _run(config: dict, tz: ZoneInfo) -> None:
@@ -198,13 +256,25 @@ async def _run(config: dict, tz: ZoneInfo) -> None:
         for conv in plugin.get_conversations():
             adapter.register_conversation(conv)
 
-    # 8. Generate /help text and register framework commands
-    help_text = _generate_help_text(plugins)
-    adapter._help_text = help_text
+    # 8. Register framework commands (help is generated dynamically per-request)
     adapter.register_command(_make_start_handler())
-    adapter.register_command(_make_help_handler(help_text))
+    for cmd in _make_help_handlers(plugins):
+        adapter.register_command(cmd)
     adapter.register_command(_make_invite_handler(db))
     adapter.register_command(_make_kick_handler(db))
+    adapter.register_command(_make_lang_handler(db, adapter))
+
+    # Populate initial lang cache
+    async def _refresh_lang_cache() -> None:
+        try:
+            cursor = await db.conn.execute("SELECT user_id, lang FROM allowed_users")
+            rows = await cursor.fetchall()
+            user_langs = {row[0]: row[1] for row in rows}
+            adapter._auth.update_lang_cache(user_langs)
+        except Exception:
+            pass
+
+    await _refresh_lang_cache()
 
     # 9. Rebuild app with all handlers registered
     app = adapter.build()
@@ -273,6 +343,7 @@ def _log_startup_banner(config: dict, tz_name: str) -> None:
 def main() -> None:
     """Entry point: load config, set up timezone, and run the async loop."""
     config = load_config()
+    _configure_logging(config)
 
     tz_name = config.get("timezone", "Asia/Shanghai")
     try:

@@ -4,6 +4,10 @@ from __future__ import annotations
 import logging
 from datetime import time
 
+from src.core.i18n import t
+
+import src.plugins.planner.locale  # noqa: F401
+
 from .reminder import check_needs_reminder
 
 logger = logging.getLogger(__name__)
@@ -50,10 +54,7 @@ async def _make_reminder_callback(ctx, plan: dict):
                 try:
                     await bot.send_message(
                         chat_id=user_id,
-                        text=(
-                            f"今天的「{name}」还没打卡哦，还在计划中吗？\n"
-                            f"用 /planner_checkin {tag} <备注> 来打卡"
-                        ),
+                        text=t("planner.reminder", "zh", name=name, tag=tag),
                     )
                 except Exception:
                     logger.exception("Failed to send plan reminder to user %s", user_id)
