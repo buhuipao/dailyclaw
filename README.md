@@ -88,9 +88,9 @@ Create plans with natural language, check in with free-form descriptions, track 
   <img src="assets/heatmap_ja.png" width="340" alt="Japanese heatmap" />
 </p>
 
-### Sharing & Export
-- `/sharing_summary week` -- LLM-generated weekly summary
-- `/sharing_export 2026-04-05` -- full daily export (messages + journal)
+### Summary
+- `/journal_summary 2026-04-01` -- LLM-generated summary from that date to today
+- `/journal_today` -- view today's journal (copy & share directly)
 
 ### Multi-language (i18n)
 Switch with `/lang`:
@@ -167,15 +167,13 @@ python -m src.main
 | **Journal** | |
 | `/journal_start` | Start daily reflection |
 | `/journal_today` | View today's journal |
+| `/journal_summary [YYYY-MM-DD]` | Summarize journal from date to today |
 | `/journal_cancel` | Cancel current session |
 | **Planner** | |
 | `/planner_add <desc>` | Create a plan |
 | `/planner_checkin <desc>` | Check in (smart match) |
 | `/planner_list` | View plan progress |
 | `/planner_del <name>` | Archive a plan |
-| **Sharing** | |
-| `/sharing_summary [week\|month]` | Generate summary |
-| `/sharing_export [YYYY-MM-DD]` | Export daily content |
 | **Admin** | |
 | `/invite <user_id>` | Invite a user |
 | `/kick <user_id>` | Remove a user |
@@ -212,8 +210,6 @@ plugins:
     remind_hour: 21
     remind_minute: 0
   planner: {}
-  sharing:
-    output_dir: "./data/site"
 ```
 
 Environment variables are resolved via `${VAR}` syntax. Put secrets in `.env`:
@@ -241,9 +237,8 @@ src/
     telegram.py      # Telegram adapter with ACK-first dispatch
   plugins/
     recorder/        # Message recording, classification, dedup, URL summary
-    journal/         # Zeng Guofan reflection + auto-journal generation
+    journal/         # Zeng Guofan reflection, auto-journal, summary
     planner/         # Goal tracking, smart check-in, reminders
-    sharing/         # Weekly/monthly summaries, daily export
 ```
 
 **Design principles:**

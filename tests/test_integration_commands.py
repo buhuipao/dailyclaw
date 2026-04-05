@@ -54,7 +54,6 @@ async def full_ctx(tmp_path):
             "recorder": {},
             "journal": {"remind_hour": 21, "remind_minute": 0},
             "planner": {},
-            "sharing": {},
         }
     }
 
@@ -535,29 +534,45 @@ class TestJournalCommands:
         assert "所阅" in reply
 
 
-class TestSharingCommands:
-    """Smoke tests for sharing commands."""
+class TestJournalSummaryCommand:
+    """Tests for journal_summary command."""
 
     @pytest.mark.asyncio
-    async def test_sharing_summary_no_data(self, full_ctx):
-        """sharing_summary returns something even with no data."""
+    async def test_journal_summary_no_data(self, full_ctx):
+        """journal_summary returns empty message when no entries."""
         _ctx, plugins, _reg = full_ctx
 
-        handler = _find_handler(plugins, "sharing_summary")
-        reply = await handler(_ev(1, text=None))
-
-        # Should return a response (either summary or empty message)
-        assert reply is not None
-
-    @pytest.mark.asyncio
-    async def test_sharing_export_no_data(self, full_ctx):
-        """sharing_export returns something even with no data."""
-        _ctx, plugins, _reg = full_ctx
-
-        handler = _find_handler(plugins, "sharing_export")
+        handler = _find_handler(plugins, "journal_summary")
         reply = await handler(_ev(1, text=None))
 
         assert reply is not None
+        assert isinstance(reply, str)
+
+    @pytest.mark.asyncio
+    async def test_journal_summary_with_date(self, full_ctx):
+        """journal_summary with start date returns a summary."""
+        ctx, plugins, _reg = full_ctx
+
+        await ctx.db.conn.execute(
+            "INSERT INTO journal_entries (user_id, date, category, content) VALUES (?, ?, ?, ?)",
+            (60, "2026-04-01", "morning", "Early start"),
+        )
+        await ctx.db.conn.commit()
+
+        handler = _find_handler(plugins, "journal_summary")
+        reply = await handler(_ev(60, text="2026-04-01"))
+
+        assert "2026-04-01" in reply
+
+    @pytest.mark.asyncio
+    async def test_journal_summary_invalid_date(self, full_ctx):
+        """journal_summary with bad date shows usage."""
+        _ctx, plugins, _reg = full_ctx
+
+        handler = _find_handler(plugins, "journal_summary")
+        reply = await handler(_ev(1, text="bad-date"))
+
+        assert "/journal_summary" in reply
 
 
 # ===========================================================================

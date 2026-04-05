@@ -84,7 +84,6 @@ _PLUGIN_EMOJI: dict[str, str] = {
     "journal": "🌙",
     "planner": "📊",
     "recorder": "📝",
-    "sharing": "📄",
 }
 
 

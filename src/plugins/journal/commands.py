@@ -2,7 +2,8 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
+import re
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from src.core.i18n import t
@@ -74,6 +75,39 @@ async def cmd_journal_cancel(event: "Event") -> str:
         del _sessions[user_id]
         return t("journal.cancelled", event.lang)
     return t("journal.no_session", event.lang)
+
+
+async def cmd_journal_summary(event: "Event") -> str:
+    """Handle /journal_summary [YYYY-MM-DD] — summarize journal from date to today."""
+    from .db import JournalDB
+    from .summary import generate_summary
+
+    ctx = _get_ctx()
+    lang = event.lang
+    text = (event.text or "").strip()
+
+    today = _get_today(ctx)
+
+    if text:
+        # Validate date format
+        if not re.match(r"\d{4}-\d{2}-\d{2}$", text):
+            return t("journal.summary_usage", lang)
+        start_date = text
+    else:
+        # Default: last 7 days
+        start_date = (datetime.now(ctx.tz) - timedelta(days=6)).strftime("%Y-%m-%d")
+
+    journal_db = JournalDB(ctx.db)
+    result = await generate_summary(
+        db=journal_db,
+        llm=ctx.llm,
+        user_id=event.user_id,
+        period_type="custom",
+        start_date=start_date,
+        end_date=today,
+        lang=lang,
+    )
+    return f"📊 {start_date} ~ {today}\n\n{result}"
 
 
 async def journal_answer_handler(event: "Event") -> str | tuple[str, bool] | None:

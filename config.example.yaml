@@ -26,6 +26,3 @@ plugins:
     evening_prompt_time: "21:30"
     template: "zeng_guofan"
   planner: {}                    # plans are created per-user via /planner_add
-  sharing:
-    output_dir: "./data/site"
-    site_title: "My Daily Claw"

@@ -22,6 +22,16 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "Cancel current reflection",
         "ja": "振り返りをキャンセル",
     },
+    "cmd.summary": {
+        "zh": "总结日记 (用法: /journal_summary [YYYY-MM-DD])",
+        "en": "Summarize journal (usage: /journal_summary [YYYY-MM-DD])",
+        "ja": "日記まとめ (使い方: /journal_summary [YYYY-MM-DD])",
+    },
+    "summary_usage": {
+        "zh": "用法: /journal_summary [起始日期]\n例如: /journal_summary 2026-04-01\n默认总结最近 7 天。",
+        "en": "Usage: /journal_summary [start date]\nE.g.: /journal_summary 2026-04-01\nDefaults to last 7 days.",
+        "ja": "使い方: /journal_summary [開始日]\n例: /journal_summary 2026-04-01\nデフォルトは過去7日間。",
+    },
     "already_in_session": {
         "zh": "你已经有一个正在进行的反思。请继续回答，或发送 /journal_cancel 取消。",
         "en": "You already have a reflection in progress. Continue answering, or send /journal_cancel to cancel.",

@@ -88,7 +88,6 @@ async def registry_with_plugins(tmp_path):
             "recorder": {},
             "journal": {},
             "planner": {},
-            "sharing": {},
         }
     }
 
@@ -118,11 +117,11 @@ async def test_full_plugin_discovery(registry_with_plugins):
     """All 4 built-in plugins load successfully in alphabetical order."""
     _db, _registry, plugins = registry_with_plugins
 
-    assert len(plugins) == 4
+    assert len(plugins) == 3
 
     names = [p.name for p in plugins]
     assert names == sorted(names), "Plugins should be loaded in alphabetical order"
-    assert set(names) == {"journal", "planner", "recorder", "sharing"}
+    assert set(names) == {"journal", "planner", "recorder"}
 
 
 @pytest.mark.asyncio
@@ -138,15 +137,15 @@ async def test_all_commands_registered(registry_with_plugins):
     expected = {
         "recorder_today",
         "recorder_del",
+        "recorder_list",
         "journal_start",
         "journal_today",
+        "journal_summary",
         "journal_cancel",
         "planner_add",
         "planner_del",
         "planner_checkin",
         "planner_list",
-        "sharing_summary",
-        "sharing_export",
     }
 
     missing = expected - all_commands

@@ -117,8 +117,11 @@ class PluginRegistry:
         runner = MigrationRunner(self._db)
         loaded: list[BasePlugin] = []
 
+        enabled_plugins = set(self._config.get("plugins", {}).keys())
         plugin_dirs = sorted(
-            p for p in root.iterdir() if p.is_dir() and (p / "__init__.py").exists()
+            p for p in root.iterdir()
+            if p.is_dir() and (p / "__init__.py").exists()
+            and (not enabled_plugins or p.name in enabled_plugins)
         )
 
         for pkg_dir in plugin_dirs:

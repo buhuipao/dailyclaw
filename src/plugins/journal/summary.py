@@ -22,7 +22,11 @@ async def generate_summary(
 ) -> str:
     """Generate and save a summary for the given period."""
     entries = await db.get_journal_range(user_id, start_date, end_date)
-    period_lbl = period_label(period_type, lang)
+    period_lbl = (
+        f"{start_date} ~ {end_date}"
+        if period_type == "custom"
+        else period_label(period_type, lang)
+    )
 
     if not entries:
         return t("journal.no_entries", lang, period=period_lbl)
