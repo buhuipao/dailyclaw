@@ -8,3 +8,4 @@ tzdata==2025.2
 httpx[socks]==0.28.1
 readability-lxml==0.8.4.1
 lxml_html_clean==0.4.2
+Pillow==11.1.0
