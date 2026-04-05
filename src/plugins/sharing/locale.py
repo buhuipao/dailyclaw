@@ -13,9 +13,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "ja": "週次/月次まとめ生成 (使い方: /sharing_summary [week|month])",
     },
     "cmd.export": {
-        "zh": "导出指定日期的内容 (用法: /sharing_export [YYYY-MM-DD])",
-        "en": "Export content for a date (usage: /sharing_export [YYYY-MM-DD])",
-        "ja": "指定日のコンテンツをエクスポート (使い方: /sharing_export [YYYY-MM-DD])",
+        "zh": "AI 整理日记 (用法: /sharing_export [YYYY-MM-DD])",
+        "en": "AI-polished diary (usage: /sharing_export [YYYY-MM-DD])",
+        "ja": "AI整理日記 (使い方: /sharing_export [YYYY-MM-DD])",
     },
     "summary_usage": {
         "zh": "用法: /sharing_summary [week|month]",
@@ -51,6 +51,46 @@ STRINGS: dict[str, dict[str, str]] = {
         "zh": "   图片: {text}",
         "en": "   Image: {text}",
         "ja": "   画像: {text}",
+    },
+    "export_system_prompt": {
+        "zh": (
+            "你是 DailyClaw 的日记编辑。用户今天记录了一些零散的消息和反思。\n"
+            "请将这些内容整理成一篇可读的日记，要求：\n"
+            "1. 去除重复内容，合并相似条目\n"
+            "2. 适当修饰语言，使其更流畅，但保留原意\n"
+            "3. 按时间或主题组织，用清晰的段落结构\n"
+            "4. 如果有反思/日记条目，作为重点突出\n"
+            "5. 结尾可以加一句简短的当日感悟\n"
+            "6. 用中文，300-500字，语气像写给自己看的日记\n"
+            "不要输出标题，我会自己加。"
+        ),
+        "en": (
+            "You are DailyClaw's diary editor. The user recorded scattered messages and reflections today.\n"
+            "Polish them into a readable diary entry:\n"
+            "1. Remove duplicates, merge similar items\n"
+            "2. Improve language flow while preserving original meaning\n"
+            "3. Organize by time or theme with clear paragraphs\n"
+            "4. Highlight reflection/journal entries as key moments\n"
+            "5. End with a brief daily insight\n"
+            "6. Respond in English, 200-400 words, personal diary tone\n"
+            "Do not output a title, I will add it."
+        ),
+        "ja": (
+            "あなたはDailyClawの日記エディターです。ユーザーが今日記録した散発的なメッセージと振り返りを整理してください。\n"
+            "読みやすい日記にまとめてください：\n"
+            "1. 重複を削除し、類似項目を統合\n"
+            "2. 言葉遣いを改善し、元の意味を保持\n"
+            "3. 時間やテーマごとに段落で整理\n"
+            "4. 振り返りの内容を重点的に扱う\n"
+            "5. 最後に一言の感想を添える\n"
+            "6. 日本語で、300-500字、自分の日記のような口調で\n"
+            "タイトルは出力しないでください。"
+        ),
+    },
+    "export_generating": {
+        "zh": "✍️ 正在用 AI 整理 {date} 的 {count} 条记录...",
+        "en": "✍️ AI is polishing {count} records from {date}...",
+        "ja": "✍️ {date} の {count} 件の記録をAIで整理中...",
     },
     # summary.py
     "no_entries": {

@@ -82,43 +82,51 @@ def _make_export_handler(ctx: "AppContext"):
     async def cmd_sharing_export(event: "Event") -> str:
         text = (event.text or "").strip()
         date = text if text else datetime.now(ctx.tz).strftime("%Y-%m-%d")
+        lang = event.lang
 
         messages = await _get_messages(ctx.db, event.user_id, date)
         journal = await _get_journal_entries(ctx.db, event.user_id, date)
 
         if not messages and not journal:
-            return t("sharing.export_empty", event.lang, date=date)
+            return t("sharing.export_empty", lang, date=date)
 
-        lines: list[str] = [t("sharing.export_header", event.lang, date=date)]
+        # Build raw material for LLM
+        raw_parts: list[str] = []
+        for msg in messages:
+            icon = MSG_TYPE_ICONS.get(msg.get("msg_type", ""), DEFAULT_ICON)
+            content = (msg.get("content") or "")[:300]
+            line = f"{icon} {content}"
+            meta_raw = msg.get("metadata") or ""
+            if meta_raw:
+                try:
+                    meta = json.loads(meta_raw)
+                    if meta.get("url_summary"):
+                        line += f" | {meta['url_summary']}"
+                    if meta.get("vision_analysis"):
+                        line += f" | {meta['vision_analysis']}"
+                except json.JSONDecodeError:
+                    pass
+            raw_parts.append(line)
 
-        if messages:
-            lines.append(t("sharing.export_records_section", event.lang))
-            for msg in messages:
-                icon = MSG_TYPE_ICONS.get(msg.get("msg_type", ""), DEFAULT_ICON)
-                content = (msg.get("content") or "")[:200]
-                lines.append(f"{icon} {content}")
-                meta_raw = msg.get("metadata") or ""
-                if meta_raw:
-                    try:
-                        meta = json.loads(meta_raw)
-                        if meta.get("url_summary"):
-                            lines.append(t("sharing.export_summary_label", event.lang, text=meta['url_summary']))
-                        if meta.get("vision_analysis"):
-                            lines.append(t("sharing.export_vision_label", event.lang, text=meta['vision_analysis']))
-                    except json.JSONDecodeError:
-                        pass
-            lines.append("")
+        for entry in journal:
+            cat_label = category_label(entry.get("category", ""), lang)
+            raw_parts.append(f"[{cat_label}] {entry.get('content', '')}")
 
-        if journal:
-            lines.append(t("sharing.export_journal_section", event.lang))
-            for entry in journal:
-                cat = entry.get("category", "")
-                cat_label = category_label(cat, event.lang)
-                lines.append(f"【{cat_label}】{entry.get('content', '')}")
-            lines.append("")
+        raw_text = "\n".join(raw_parts)
+        total = len(messages) + len(journal)
 
-        lines.append("— DailyClaw 🦉")
-        return "\n".join(lines)
+        # LLM polish
+        polished = await ctx.llm.chat(
+            messages=[
+                {"role": "system", "content": t("sharing.export_system_prompt", lang)},
+                {"role": "user", "content": raw_text},
+            ],
+            max_tokens=800,
+            lang=lang,
+        )
+
+        header = t("sharing.export_header", lang, date=date)
+        return f"{header}\n{polished}\n\n— DailyClaw 🦉"
 
     return cmd_sharing_export
 
