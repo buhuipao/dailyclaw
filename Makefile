@@ -51,7 +51,9 @@ docker-push: ## Push Docker image to custom registry: make docker-push REPO=your
 	docker push $(REPO):$(VERSION)
 	docker push $(REPO):latest
 
-deploy: docker-amd64 docker-save ## Build amd64 image + export .tar.gz (offline deploy)
+deploy: push ## Build amd64 + push to Docker Hub
+
+offline: docker-amd64 docker-save ## Build amd64 + export .tar.gz (offline deploy)
 
 clean: ## Clean build artifacts
 	rm -rf dist/ build/ *.egg-info src/*.egg-info
