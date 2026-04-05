@@ -16,3 +16,4 @@ build/
 .pytest_cache/
 .claude/settings.local.json
 docs/superpowers/
+docs/launch-posts.md
