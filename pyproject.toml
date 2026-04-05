@@ -17,7 +17,7 @@ dependencies = [
     "aiosqlite>=0.20",
     "jinja2>=3.1",
     "tzdata>=2024.1",
-    "httpx>=0.27",
+    "httpx[socks]>=0.27",
     "readability-lxml>=0.8",
     "lxml_html_clean>=0.4",
 ]
