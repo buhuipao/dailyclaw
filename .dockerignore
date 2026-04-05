@@ -1,3 +1,10 @@
+# Secrets — NEVER include in image
+.env
+.env.*
+config.yaml
+config.local.yaml
+
+# Dev / build
 .venv/
 .git/
 .github/
@@ -9,5 +16,10 @@ __pycache__/
 data/
 docs/
 tests/
-.env
 *.md
+Makefile
+pyproject.toml
+assets/
+dist/
+build/
+*.egg-info/
