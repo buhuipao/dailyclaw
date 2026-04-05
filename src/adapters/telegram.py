@@ -309,8 +309,8 @@ class TelegramAdapter(BotAdapter):
                 return
             if cmd.admin_only and not event.is_admin:
                 if update.effective_message:
-                    await update.effective_message.reply_text(
-                        t("adapter.no_permission", event.lang)
+                    await _reply_with_retry(
+                        update.effective_message, t("adapter.no_permission", event.lang)
                     )
                 return
             # Strip the /command prefix — event.text should only contain arguments.
@@ -368,7 +368,7 @@ class TelegramAdapter(BotAdapter):
             )
             result = await conv.entry_handler(event)
             if isinstance(result, str) and update.effective_message:
-                await update.effective_message.reply_text(result)
+                await _reply_with_retry(update.effective_message, result)
                 return 0
             return _END
 
@@ -384,11 +384,11 @@ class TelegramAdapter(BotAdapter):
                 if isinstance(result, tuple):
                     text, end = result
                     if update.effective_message:
-                        await update.effective_message.reply_text(text)
+                        await _reply_with_retry(update.effective_message, text)
                     return _END if end else 0
                 # Plain string → send reply, stay in conversation
                 if isinstance(result, str) and update.effective_message:
-                    await update.effective_message.reply_text(result)
+                    await _reply_with_retry(update.effective_message, result)
                 return 0
 
             return _inner
@@ -459,6 +459,12 @@ async def _mark_queue_failed(db: Any, queue_id: int | None, error: str) -> None:
         await db.conn.commit()
     except Exception:
         pass
+
+
+@with_retry(max_retries=3, delay=0.5)
+async def _reply_with_retry(msg: Any, text: str) -> None:
+    """Send reply_text with retry for proxy/network flakiness."""
+    await msg.reply_text(text)
 
 
 async def _ack_and_dispatch(
