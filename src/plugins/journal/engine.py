@@ -59,7 +59,11 @@ class JournalEngine:
         ]
         response = await self._llm.chat(messages=self._conversation, lang=self._lang)
         self._conversation.append({"role": "assistant", "content": response})
-        return response
+        step_header = t(
+            "journal.step_indicator", self._lang,
+            step=self._step + 1, total=len(JOURNAL_FLOW), label=label,
+        )
+        return step_header + response
 
     async def answer(self, text: str) -> str:
         category = self.current_category
@@ -87,7 +91,11 @@ class JournalEngine:
         )
         response = await self._llm.chat(messages=self._conversation[-6:], lang=self._lang)
         self._conversation.append({"role": "assistant", "content": response})
-        return response
+        step_header = t(
+            "journal.step_indicator", self._lang,
+            step=self._step + 1, total=len(JOURNAL_FLOW), label=label,
+        )
+        return step_header + response
 
     async def _generate_closing(self) -> str:
         entries = await self._db.get_journal_entries(self._user_id, self._date)
@@ -108,7 +116,9 @@ class JournalEngine:
             max_tokens=300,
             lang=self._lang,
         )
-        return response
+        header = t("journal.closing_header", self._lang)
+        footer = t("journal.closing_footer", self._lang)
+        return header + response + footer
 
     def _build_system_prompt(self) -> str:
         context = ""

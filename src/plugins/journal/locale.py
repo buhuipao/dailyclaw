@@ -63,15 +63,30 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "Continue, please guide the \"{label}\" section.",
         "ja": "続けて、「{label}」セクションをガイドしてください。",
     },
+    "step_indicator": {
+        "zh": "📝 第 {step}/{total} 部分：{label}\n\n",
+        "en": "📝 Part {step}/{total}: {label}\n\n",
+        "ja": "📝 パート {step}/{total}：{label}\n\n",
+    },
     "closing_fallback": {
-        "zh": "今天的反思结束了。明天继续加油！",
-        "en": "Today's reflection is done. Keep it up tomorrow!",
-        "ja": "今日の振り返りは終わりです。明日も頑張りましょう！",
+        "zh": "───── ✅ 今日反思完成 ─────\n\n今天的反思结束了。明天继续加油！\n\n📖 查看记录: /journal_today",
+        "en": "───── ✅ Reflection Complete ─────\n\nToday's reflection is done. Keep it up tomorrow!\n\n📖 View: /journal_today",
+        "ja": "───── ✅ 振り返り完了 ─────\n\n今日の振り返りは終わりです。明日も頑張りましょう！\n\n📖 表示: /journal_today",
+    },
+    "closing_header": {
+        "zh": "───── ✅ 今日反思完成 ─────\n\n",
+        "en": "───── ✅ Reflection Complete ─────\n\n",
+        "ja": "───── ✅ 振り返り完了 ─────\n\n",
+    },
+    "closing_footer": {
+        "zh": "\n\n📖 查看完整记录: /journal_today",
+        "en": "\n\n📖 View full record: /journal_today",
+        "ja": "\n\n📖 全記録を表示: /journal_today",
     },
     "closing_system_prompt": {
-        "zh": "你是 DailyClaw。用户刚完成今日四省反思。请用 2-3 句温暖的话总结今天，给出一句鼓励。用中文，简洁。",
-        "en": "You are DailyClaw. The user just completed today's four-part reflection. Summarize in 2-3 warm sentences and encourage. Be concise, respond in English.",
-        "ja": "あなたはDailyClawです。ユーザーが今日の四省の振り返りを完了しました。2-3文で温かくまとめ、励ましてください。日本語で簡潔に。",
+        "zh": "你是 DailyClaw。用户刚完成今日四省反思。请用 2-3 句温暖的话总结今天，给出一句鼓励。用中文，简洁。不要输出标题或分隔线。",
+        "en": "You are DailyClaw. The user just completed today's four-part reflection. Summarize in 2-3 warm sentences and encourage. Be concise, respond in English. Do not output headers or separators.",
+        "ja": "あなたはDailyClawです。ユーザーが今日の四省の振り返りを完了しました。2-3文で温かくまとめ、励ましてください。日本語で簡潔に。タイトルや区切り線は出力しないでください。",
     },
     "system_prompt": {
         "zh": (
