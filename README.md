@@ -5,8 +5,8 @@
 <h1 align="center">DailyClaw</h1>
 
 <p align="center">
-  <strong>A personal Telegram bot for daily recording, reflection, and self-improvement.</strong><br>
-  <em>Record anything. Reflect every night. Improve every day.</em>
+  <strong>An extendable personal life assistant that lives in your Telegram.</strong><br>
+  <em>Record anything. Reflect every night. Track habits. Extend with plugins.</em>
 </p>
 
 <p align="center">
@@ -30,19 +30,19 @@
 
 ## Why DailyClaw?
 
-I'm an INTJ software engineer at a major tech company. I have a lot of ideas, read constantly, and believe in daily self-reflection as a path to improvement. I follow the Zeng Guofan method of daily four-part reflection (*Morning, Reading, Social, Reflection*) and wanted a private, always-available assistant to help me do it.
+I'm an INTJ software engineer at a major tech company. I have a lot of ideas, read constantly, and believe in daily self-reflection as a path to improvement. I wanted a private assistant that helps me manage my daily life -- record thoughts, track habits, reflect every night, summarize my week.
 
-I looked at projects like [OpenClaw](https://github.com/openclaw/openclaw) but they're built for power users and enterprise workflows -- multi-channel orchestration, complex agent pipelines, dozens of integrations. That's great if you're building an AI-powered workplace tool, but I just wanted something simple: **send a message to my bot, and it records my life**.
+I looked at projects like [OpenClaw](https://github.com/openclaw/openclaw) but they're built for enterprise workflows -- multi-channel orchestration, complex agent pipelines, dozens of integrations. I needed something for **personal life, not work**.
 
 So I built DailyClaw for people like me -- and maybe like you:
 
 - You want to **record thoughts, links, photos, voice notes** throughout the day without friction
 - You want a **nightly reflection ritual** guided by your bot, not an empty journal page
 - You want to **track habits** and see your consistency on a heatmap
+- You want to **extend it** with your own plugins (book tracker, expense logger, fitness diary...)
 - You want it **private** (self-hosted, your data stays with you) and **simple** (one config file, one Docker command)
-- You don't need 20 integrations. You need one bot that does its job well.
 
-**DailyClaw is not an enterprise agent framework. It's a personal journal that lives in your pocket.**
+**DailyClaw is not an enterprise agent framework. It's a personal life assistant that lives in your pocket -- and grows with you through plugins.**
 
 ---
 
