@@ -205,6 +205,50 @@ def _make_lang_handler(db: Database, adapter: TelegramAdapter) -> Command:
     return Command(name="lang", description="Switch language / 切换语言 / 言語切替", handler=handler)
 
 
+class _LazyScheduler:
+    """Buffers job registrations until the real scheduler is ready.
+
+    Problem: plugins call scheduler.run_daily() during on_startup(), but
+    the final Telegram Application (with its JobQueue) isn't built yet.
+    This class records all calls, then replays them onto the real scheduler.
+    After replay, it delegates all future calls directly.
+    """
+
+    def __init__(self) -> None:
+        self._pending: list[tuple[str, tuple, dict]] = []
+        self._delegate: object | None = None
+
+    def set_delegate(self, scheduler: object) -> None:
+        self._delegate = scheduler
+
+    async def run_daily(self, callback, time, name, **kwargs) -> None:
+        if self._delegate is not None:
+            await self._delegate.run_daily(callback, time=time, name=name, **kwargs)
+        else:
+            self._pending.append(("run_daily", (callback, time, name), kwargs))
+
+    async def run_repeating(self, callback, interval, name, **kwargs) -> None:
+        if self._delegate is not None:
+            await self._delegate.run_repeating(callback, interval=interval, name=name, **kwargs)
+        else:
+            self._pending.append(("run_repeating", (callback, interval, name), kwargs))
+
+    async def cancel(self, name: str) -> None:
+        if self._delegate is not None:
+            await self._delegate.cancel(name)
+
+    async def replay_onto(self, scheduler: object) -> None:
+        """Replay all buffered calls onto the real scheduler."""
+        for method_name, args, kwargs in self._pending:
+            method = getattr(scheduler, method_name)
+            if method_name == "run_daily":
+                await method(args[0], time=args[1], name=args[2], **kwargs)
+            elif method_name == "run_repeating":
+                await method(args[0], interval=args[1], name=args[2], **kwargs)
+        logger.info("Replayed %d deferred scheduler jobs", len(self._pending))
+        self._pending.clear()
+
+
 async def _run(config: dict, tz: ZoneInfo) -> None:
     """Async main — sets up all components and starts the bot."""
     # 1. Database
@@ -229,17 +273,18 @@ async def _run(config: dict, tz: ZoneInfo) -> None:
     admin_ids: list[int] = config.get("telegram", {}).get("allowed_user_ids", [])
     adapter = TelegramAdapter(token=token, admin_ids=admin_ids, db=db)
 
-    # 5. Scheduler from adapter (build app first to get job_queue)
-    app = adapter.build()
+    # 5. Use a lazy scheduler that defers job registration until the final
+    #    Application is built.  This is needed because adapter.build() creates
+    #    a new Application (and a new JobQueue) each time it's called.
     from .adapters.telegram import TelegramScheduler
-    scheduler = TelegramScheduler(app.job_queue)
+    lazy_scheduler = _LazyScheduler()
 
-    # 6. Plugin discovery
+    # 6. Plugin discovery (plugins register jobs on the lazy scheduler)
     registry = PluginRegistry(
         db=db,
         llm=llm,
         bot=adapter,
-        scheduler=scheduler,
+        scheduler=lazy_scheduler,
         config=config,
         tz=tz,
     )
@@ -275,8 +320,12 @@ async def _run(config: dict, tz: ZoneInfo) -> None:
 
     await _refresh_lang_cache()
 
-    # 9. Rebuild app with all handlers registered
+    # 9. Build FINAL app with all handlers, then replay deferred jobs
     app = adapter.build()
+    real_scheduler = TelegramScheduler(app.job_queue)
+    await lazy_scheduler.replay_onto(real_scheduler)
+    # Update the ctx.scheduler reference for runtime use (e.g. /planner_add)
+    lazy_scheduler.set_delegate(real_scheduler)
 
     logger.info("DailyClaw starting with %d plugin(s)...", len(plugins))
 
@@ -296,8 +345,11 @@ async def _run(config: dict, tz: ZoneInfo) -> None:
                 await db.close()
                 raise
             await asyncio.sleep(3)
-            # Rebuild app for fresh connection pool
+            # Rebuild app for fresh connection pool, re-register jobs
             app = adapter.build()
+            real_scheduler = TelegramScheduler(app.job_queue)
+            await lazy_scheduler.replay_onto(real_scheduler)
+            lazy_scheduler.set_delegate(real_scheduler)
 
     try:
         stop_event = asyncio.Event()
