@@ -56,17 +56,47 @@ async def cmd_journal_today(event: "Event") -> str:
     from .db import JournalDB
 
     ctx = _get_ctx()
+    lang = event.lang
+    today = _get_today(ctx)
     journal_db = JournalDB(ctx.db)
-    entries = await journal_db.get_journal_entries(event.user_id, _get_today(ctx))
+    entries = await journal_db.get_journal_entries(event.user_id, today)
 
     if not entries:
-        return t("journal.today_empty", event.lang)
+        return t("journal.today_empty", lang)
 
-    lines = [t("journal.today_header", event.lang, date=_get_today(ctx))]
+    # Also fetch today's messages for a complete picture
+    raw_parts: list[str] = []
+    try:
+        cursor = await ctx.db.conn.execute(
+            "SELECT content, category, msg_type FROM messages "
+            "WHERE user_id = ? AND date(created_at) = ? AND deleted_at IS NULL "
+            "ORDER BY created_at",
+            (event.user_id, today),
+        )
+        messages = await cursor.fetchall()
+        for msg in messages:
+            raw_parts.append(f"[{msg['category'] or msg['msg_type']}] {(msg['content'] or '')[:200]}")
+    except Exception:
+        pass
+
     for entry in entries:
-        label = category_label(entry["category"], event.lang)
-        lines.append(f"【{label}】{entry['content']}")
-    return "\n".join(lines)
+        label = category_label(entry["category"], lang)
+        raw_parts.append(f"[{label}] {entry['content']}")
+
+    raw_text = "\n".join(raw_parts)
+
+    # LLM polish: deduplicate, organize, format
+    polished = await ctx.llm.chat(
+        messages=[
+            {"role": "system", "content": t("journal.today_system_prompt", lang)},
+            {"role": "user", "content": raw_text},
+        ],
+        max_tokens=600,
+        lang=lang,
+    )
+
+    header = t("journal.today_header", lang, date=today)
+    return f"{header}\n{polished}"
 
 
 async def cmd_journal_cancel(event: "Event") -> str:
@@ -77,8 +107,8 @@ async def cmd_journal_cancel(event: "Event") -> str:
     return t("journal.no_session", event.lang)
 
 
-async def cmd_journal_summary(event: "Event") -> str:
-    """Handle /journal_summary [YYYY-MM-DD] — summarize journal from date to today."""
+async def cmd_journal_review(event: "Event") -> str:
+    """Handle /journal_review [YYYY-MM-DD] — review journal from date to today."""
     from .db import JournalDB
     from .summary import generate_summary
 
@@ -89,12 +119,10 @@ async def cmd_journal_summary(event: "Event") -> str:
     today = _get_today(ctx)
 
     if text:
-        # Validate date format
         if not re.match(r"\d{4}-\d{2}-\d{2}$", text):
-            return t("journal.summary_usage", lang)
+            return t("journal.review_usage", lang)
         start_date = text
     else:
-        # Default: last 7 days
         start_date = (datetime.now(ctx.tz) - timedelta(days=6)).strftime("%Y-%m-%d")
 
     journal_db = JournalDB(ctx.db)

@@ -511,7 +511,7 @@ class TestJournalCommands:
 
     @pytest.mark.asyncio
     async def test_journal_today_with_data(self, full_ctx):
-        """journal_today shows today's entries."""
+        """journal_today returns LLM-polished diary when entries exist."""
         ctx, plugins, _reg = full_ctx
         today = datetime.now(TZ).strftime("%Y-%m-%d")
 
@@ -528,29 +528,29 @@ class TestJournalCommands:
         handler = _find_handler(plugins, "journal_today")
         reply = await handler(_ev(6))
 
-        assert "七点起床" in reply
-        assert "读了论语" in reply
-        assert "晨起" in reply
-        assert "所阅" in reply
+        # Header should contain today's date
+        assert today in reply
+        # LLM was called (fake returns "default LLM response")
+        assert len(reply) > 20
 
 
 class TestJournalSummaryCommand:
-    """Tests for journal_summary command."""
+    """Tests for journal_review command."""
 
     @pytest.mark.asyncio
-    async def test_journal_summary_no_data(self, full_ctx):
-        """journal_summary returns empty message when no entries."""
+    async def test_journal_review_no_data(self, full_ctx):
+        """journal_review returns empty message when no entries."""
         _ctx, plugins, _reg = full_ctx
 
-        handler = _find_handler(plugins, "journal_summary")
+        handler = _find_handler(plugins, "journal_review")
         reply = await handler(_ev(1, text=None))
 
         assert reply is not None
         assert isinstance(reply, str)
 
     @pytest.mark.asyncio
-    async def test_journal_summary_with_date(self, full_ctx):
-        """journal_summary with start date returns a summary."""
+    async def test_journal_review_with_date(self, full_ctx):
+        """journal_review with start date returns a summary."""
         ctx, plugins, _reg = full_ctx
 
         await ctx.db.conn.execute(
@@ -559,20 +559,20 @@ class TestJournalSummaryCommand:
         )
         await ctx.db.conn.commit()
 
-        handler = _find_handler(plugins, "journal_summary")
+        handler = _find_handler(plugins, "journal_review")
         reply = await handler(_ev(60, text="2026-04-01"))
 
         assert "2026-04-01" in reply
 
     @pytest.mark.asyncio
-    async def test_journal_summary_invalid_date(self, full_ctx):
-        """journal_summary with bad date shows usage."""
+    async def test_journal_review_invalid_date(self, full_ctx):
+        """journal_review with bad date shows usage."""
         _ctx, plugins, _reg = full_ctx
 
-        handler = _find_handler(plugins, "journal_summary")
+        handler = _find_handler(plugins, "journal_review")
         reply = await handler(_ev(1, text="bad-date"))
 
-        assert "/journal_summary" in reply
+        assert "/journal_review" in reply
 
 
 # ===========================================================================

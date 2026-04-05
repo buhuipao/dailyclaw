@@ -140,7 +140,7 @@ async def test_all_commands_registered(registry_with_plugins):
         "recorder_list",
         "journal_start",
         "journal_today",
-        "journal_summary",
+        "journal_review",
         "journal_cancel",
         "planner_add",
         "planner_del",

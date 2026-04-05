@@ -13,24 +13,56 @@ STRINGS: dict[str, dict[str, str]] = {
         "ja": "今日の振り返りを開始",
     },
     "cmd.today": {
-        "zh": "查看今日记录",
-        "en": "View today's entries",
-        "ja": "今日の記録を見る",
+        "zh": "查看今日日记",
+        "en": "View today's diary",
+        "ja": "今日の日記を見る",
     },
     "cmd.cancel": {
         "zh": "取消进行中的反思",
         "en": "Cancel current reflection",
         "ja": "振り返りをキャンセル",
     },
-    "cmd.summary": {
-        "zh": "总结日记 (用法: /journal_summary [YYYY-MM-DD])",
-        "en": "Summarize journal (usage: /journal_summary [YYYY-MM-DD])",
-        "ja": "日記まとめ (使い方: /journal_summary [YYYY-MM-DD])",
+    "cmd.review": {
+        "zh": "回顾日记 (用法: /journal_review [YYYY-MM-DD])",
+        "en": "Review journal (usage: /journal_review [YYYY-MM-DD])",
+        "ja": "日記を振り返る (使い方: /journal_review [YYYY-MM-DD])",
     },
-    "summary_usage": {
-        "zh": "用法: /journal_summary [起始日期]\n例如: /journal_summary 2026-04-01\n默认总结最近 7 天。",
-        "en": "Usage: /journal_summary [start date]\nE.g.: /journal_summary 2026-04-01\nDefaults to last 7 days.",
-        "ja": "使い方: /journal_summary [開始日]\n例: /journal_summary 2026-04-01\nデフォルトは過去7日間。",
+    "review_usage": {
+        "zh": "用法: /journal_review [起始日期]\n例如: /journal_review 2026-04-01\n默认回顾最近 7 天。",
+        "en": "Usage: /journal_review [start date]\nE.g.: /journal_review 2026-04-01\nDefaults to last 7 days.",
+        "ja": "使い方: /journal_review [開始日]\n例: /journal_review 2026-04-01\nデフォルトは過去7日間。",
+    },
+    "today_system_prompt": {
+        "zh": (
+            "你是 DailyClaw 的日记编辑。用户今天记录了一些反思条目（可能有重复）。\n"
+            "请整理成一篇简洁可读的今日日记，要求：\n"
+            "1. 去除重复内容，合并同类条目\n"
+            "2. 按四省分类（晨起、所阅、待人接物、反省）组织，用 emoji 标记\n"
+            "3. 适当修饰语言使其流畅，但保留原意，不要添油加醋\n"
+            "4. 忠实记录，不要加感慨或无中生有的内容\n"
+            "5. 用中文，300字以内\n"
+            "不要输出标题。"
+        ),
+        "en": (
+            "You are DailyClaw's diary editor. The user recorded reflection entries today (may have duplicates).\n"
+            "Polish into a concise daily diary:\n"
+            "1. Remove duplicates, merge similar entries\n"
+            "2. Organize by four categories (Morning, Reading, Social, Reflection) with emoji markers\n"
+            "3. Improve flow while preserving meaning — do not embellish\n"
+            "4. Be faithful — do not add sentiments the user didn't express\n"
+            "5. Under 200 words, in English\n"
+            "Do not output a title."
+        ),
+        "ja": (
+            "あなたはDailyClawの日記エディターです。ユーザーが今日記録した振り返り（重複あり）を整理してください。\n"
+            "簡潔な日記にまとめてください：\n"
+            "1. 重複を削除、類似項目を統合\n"
+            "2. 四省分類（朝・読書・対人・反省）でemoji付きで整理\n"
+            "3. 元の意味を保持し脚色しない\n"
+            "4. 記録に忠実に\n"
+            "5. 日本語で300字以内\n"
+            "タイトルは出力しない。"
+        ),
     },
     "already_in_session": {
         "zh": "你已经有一个正在进行的反思。请继续回答，或发送 /journal_cancel 取消。",

@@ -18,14 +18,14 @@ class JournalPlugin(BasePlugin):
     def get_commands(self) -> list[Command]:
         from .commands import (
             cmd_journal_cancel,
+            cmd_journal_review,
             cmd_journal_start,
-            cmd_journal_summary,
             cmd_journal_today,
         )
         return [
             Command(name="journal_start", description="开始今日反思", handler=cmd_journal_start),
-            Command(name="journal_today", description="查看今日记录", handler=cmd_journal_today),
-            Command(name="journal_summary", description="总结日记", handler=cmd_journal_summary),
+            Command(name="journal_today", description="查看今日日记", handler=cmd_journal_today),
+            Command(name="journal_review", description="回顾日记", handler=cmd_journal_review),
             Command(name="journal_cancel", description="取消进行中的反思", handler=cmd_journal_cancel),
         ]
 

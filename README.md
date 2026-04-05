@@ -88,9 +88,9 @@ Create plans with natural language, check in with free-form descriptions, track 
   <img src="assets/heatmap_ja.png" width="340" alt="Japanese heatmap" />
 </p>
 
-### Summary
-- `/journal_summary 2026-04-01` -- LLM-generated summary from that date to today
-- `/journal_today` -- view today's journal (copy & share directly)
+### Review & Share
+- `/journal_today` -- AI-polished today's diary (deduplicated, organized, ready to share)
+- `/journal_review 2026-04-01` -- LLM-generated review from that date to today
 
 ### Multi-language (i18n)
 Switch with `/lang`:
@@ -167,7 +167,7 @@ python -m src.main
 | **Journal** | |
 | `/journal_start` | Start daily reflection |
 | `/journal_today` | View today's journal |
-| `/journal_summary [YYYY-MM-DD]` | Summarize journal from date to today |
+| `/journal_review [YYYY-MM-DD]` | Review journal from date to today |
 | `/journal_cancel` | Cancel current session |
 | **Planner** | |
 | `/planner_add <desc>` | Create a plan |
