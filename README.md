@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/heatmap_en.png" width="360" alt="DailyClaw heatmap" />
+  <img src="assets/logo.png" width="180" alt="DailyClaw logo" />
 </p>
 
 <h1 align="center">DailyClaw</h1>
