@@ -47,17 +47,17 @@ def _pick_color(count: int, thresholds: list[int]) -> tuple[int, int, int]:
 
 def _load_font(size: int) -> ImageFont.FreeTypeFont:
     for path in (
-        # macOS — CJK fonts that actually exist on modern macOS
+        # macOS
         "/System/Library/Fonts/Hiragino Sans GB.ttc",
         "/System/Library/Fonts/STHeiti Medium.ttc",
         "/System/Library/Fonts/STHeiti Light.ttc",
         "/System/Library/Fonts/Supplemental/Songti.ttc",
         "/System/Library/Fonts/PingFang.ttc",
-        # Debian/Ubuntu: fonts-noto-cjk package (Docker)
+        # Docker — single OTF downloaded in Dockerfile
+        "/usr/share/fonts/noto/NotoSansCJKjp-Regular.otf",
+        # Debian/Ubuntu: fonts-noto-cjk package
         "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
         "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-        # Alpine
-        "/usr/share/fonts/noto/NotoSansCJK-Regular.ttc",
         # Fallback non-CJK
         "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
     ):

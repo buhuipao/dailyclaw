@@ -1,11 +1,12 @@
-FROM python:3.12-slim
+FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 
-# CJK font for heatmap image rendering
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends fonts-noto-cjk \
-    && rm -rf /var/lib/apt/lists/*
+# CJK font for heatmap image rendering (single file, no apt needed)
+RUN mkdir -p /usr/share/fonts/noto && \
+    python -c "import urllib.request; urllib.request.urlretrieve( \
+      'https://github.com/googlefonts/noto-cjk/raw/main/Sans/OTF/Japanese/NotoSansCJKjp-Regular.otf', \
+      '/usr/share/fonts/noto/NotoSansCJKjp-Regular.otf')"
 
 # Install deps first (layer cache)
 COPY requirements.txt .
