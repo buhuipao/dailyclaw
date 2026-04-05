@@ -105,23 +105,44 @@ Switch with `/lang`:
 - A Telegram bot token (talk to [@BotFather](https://t.me/BotFather))
 - An LLM API key (OpenAI-compatible: OpenAI, DeepSeek, Doubao, etc.)
 
-### Docker (recommended)
+### Docker Hub (easiest)
 
 ```bash
-git clone https://github.com/yourusername/dailyclaw.git
+mkdir dailyclaw && cd dailyclaw
+
+# Create your config
+curl -O https://raw.githubusercontent.com/buhuipao/dailyclaw/main/config.example.yaml
+cp config.example.yaml config.yaml
+# Edit config.yaml with your tokens
+
+# Create .env
+cat > .env << 'EOF'
+TELEGRAM_BOT_TOKEN=your-token-here
+LLM_API_KEY=sk-xxx
+EOF
+
+# Run
+docker run -d --name dailyclaw \
+  --env-file .env \
+  -v $(pwd)/config.yaml:/app/config.yaml:ro \
+  -v $(pwd)/data:/app/data \
+  buhuipao/dailyclaw:latest
+```
+
+### Docker Compose
+
+```bash
+git clone https://github.com/buhuipao/dailyclaw.git
 cd dailyclaw
 cp config.example.yaml config.yaml
 # Edit config.yaml with your tokens
-```
-
-```bash
 docker compose up -d
 ```
 
 ### Local Python
 
 ```bash
-git clone https://github.com/yourusername/dailyclaw.git
+git clone https://github.com/buhuipao/dailyclaw.git
 cd dailyclaw
 python -m venv .venv && source .venv/bin/activate
 pip install -e .
@@ -250,7 +271,23 @@ Everything adapts: UI messages, LLM prompts, heatmap labels, journal reflection,
 
 ## Contributing
 
-Contributions are welcome! Please:
+Contributions are welcome -- especially **new plugins**!
+
+DailyClaw is designed to be extended. Want a fitness tracker, a mood logger, a book list, an expense tracker? Build it as a plugin.
+
+### Creating a Plugin
+
+See the full guide: **[docs/creating-plugins.md](docs/creating-plugins.md)**
+
+TL;DR -- a plugin is a folder under `src/plugins/` with:
+- `__init__.py` -- plugin class inheriting `BasePlugin`
+- `commands.py` -- command handlers
+- `locale.py` -- translations (zh/en/ja)
+- `migrations/` -- SQL schema files
+
+The framework auto-discovers your plugin, runs migrations, and registers commands. No wiring needed.
+
+### General Contributions
 
 1. Fork the repo
 2. Create a feature branch
@@ -261,6 +298,9 @@ Contributions are welcome! Please:
 # Run tests
 pip install -e ".[dev]"
 pytest tests/ -v
+
+# Run a specific test
+pytest tests/test_plugins/test_your_plugin.py -v
 ```
 
 ---

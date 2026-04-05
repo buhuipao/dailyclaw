@@ -1,9 +1,10 @@
 # DailyClaw build commands
 # Version format: 1.0.0.YYYYMMDD.HHMM
-VERSION := 1.0.0.$(shell date +%Y%m%d.%H%M)
-IMAGE   := dailyclaw
+VERSION  := 1.0.0.$(shell date +%Y%m%d.%H%M)
+IMAGE    := dailyclaw
+REGISTRY := buhuipao/dailyclaw
 
-.PHONY: help version build wheel docker docker-push clean test
+.PHONY: help version build wheel docker docker-push push clean test
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -36,14 +37,21 @@ docker-save: ## Export Docker image to .tar.gz for offline deploy
 	docker save $(IMAGE):latest | gzip > dist/$(IMAGE)-$(VERSION).tar.gz
 	@echo "Saved: dist/$(IMAGE)-$(VERSION).tar.gz"
 
-docker-push: ## Push Docker image (set REGISTRY first)
-	@if [ -z "$(REGISTRY)" ]; then echo "Usage: make docker-push REGISTRY=your.registry.com/repo"; exit 1; fi
+push: docker-amd64 ## Build amd64 + push to Docker Hub (buhuipao/dailyclaw)
 	docker tag $(IMAGE):$(VERSION) $(REGISTRY):$(VERSION)
 	docker tag $(IMAGE):latest $(REGISTRY):latest
 	docker push $(REGISTRY):$(VERSION)
 	docker push $(REGISTRY):latest
+	@echo "Pushed: $(REGISTRY):$(VERSION) + latest"
 
-deploy: docker-amd64 docker-save ## Build amd64 image + export .tar.gz (one-step deploy prep)
+docker-push: ## Push Docker image to custom registry: make docker-push REPO=your.registry.com/repo
+	@if [ -z "$(REPO)" ]; then echo "Usage: make docker-push REPO=your.registry.com/repo"; exit 1; fi
+	docker tag $(IMAGE):$(VERSION) $(REPO):$(VERSION)
+	docker tag $(IMAGE):latest $(REPO):latest
+	docker push $(REPO):$(VERSION)
+	docker push $(REPO):latest
+
+deploy: docker-amd64 docker-save ## Build amd64 image + export .tar.gz (offline deploy)
 
 clean: ## Clean build artifacts
 	rm -rf dist/ build/ *.egg-info src/*.egg-info
