@@ -68,10 +68,27 @@ class DynamicAuthFilter:
 
 
 class TelegramScheduler(Scheduler):
-    """Wraps python-telegram-bot JobQueue."""
+    """Wraps python-telegram-bot JobQueue.
+
+    python-telegram-bot's JobQueue expects callbacks with signature
+    ``async def callback(context: CallbackContext)``. Our Scheduler ABC
+    uses bare ``async def callback()`` for portability. This class wraps
+    each callback to bridge the difference.
+    """
 
     def __init__(self, job_queue: Any) -> None:
         self._jq = job_queue
+
+    @staticmethod
+    def _wrap(callback: Callable) -> Callable:
+        """Wrap a bare async callback to accept (and ignore) the JobQueue context arg."""
+        async def _job_callback(context: Any) -> None:
+            try:
+                await callback()
+            except Exception:
+                logger.error("Scheduled job failed", exc_info=True)
+        _job_callback.__name__ = getattr(callback, "__name__", "job")
+        return _job_callback
 
     async def run_daily(
         self,
@@ -85,8 +102,8 @@ class TelegramScheduler(Scheduler):
         kwargs: dict[str, Any] = {"name": name, "data": data}
         if days is not None:
             kwargs["days"] = days
-        self._jq.run_daily(callback, time=time, **kwargs)
-        logger.debug("Scheduled daily job %r at %s", name, time)
+        self._jq.run_daily(self._wrap(callback), time=time, **kwargs)
+        logger.info("Scheduled daily job %r at %s (days=%s)", name, time, days)
 
     async def run_repeating(
         self,
@@ -96,8 +113,8 @@ class TelegramScheduler(Scheduler):
         *,
         first: float = 0,
     ) -> None:
-        self._jq.run_repeating(callback, interval=interval, first=first, name=name)
-        logger.debug("Scheduled repeating job %r every %ss", name, interval)
+        self._jq.run_repeating(self._wrap(callback), interval=interval, first=first, name=name)
+        logger.info("Scheduled repeating job %r every %ss", name, interval)
 
     async def cancel(self, name: str) -> None:
         jobs = self._jq.get_jobs_by_name(name)

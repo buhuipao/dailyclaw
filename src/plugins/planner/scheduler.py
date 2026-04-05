@@ -62,41 +62,43 @@ async def _make_reminder_callback(ctx, plan: dict):
     return reminder_callback
 
 
+async def register_plan_reminder(
+    ctx, tag: str, name: str, schedule: str, remind_time_str: str,
+) -> None:
+    """Register a single plan's daily reminder. Can be called at startup or after /planner_add."""
+    try:
+        h, m = (int(x) for x in remind_time_str.split(":"))
+    except ValueError:
+        logger.warning("Invalid remind_time '%s' for plan '%s', defaulting to 20:00", remind_time_str, tag)
+        h, m = 20, 0
+
+    plan_data = {"tag": tag, "name": name, "schedule": schedule, "remind_time": remind_time_str}
+    job_time = time(hour=h, minute=m, tzinfo=ctx.tz)
+    days = _parse_schedule_days(schedule)
+    callback = await _make_reminder_callback(ctx, plan_data)
+
+    await ctx.scheduler.run_daily(
+        callback,
+        time=job_time,
+        name=f"plan_reminder_{tag}",
+        days=days,
+        data=plan_data,
+    )
+    logger.info("Scheduled reminder for '%s' at %s (schedule: %s)", tag, remind_time_str, schedule)
+
+
 async def setup_plan_reminders(ctx) -> None:
     """Query all active plans from DB and schedule a daily reminder for each."""
-    db = ctx.db
-    scheduler = ctx.scheduler
-
-    cursor = await db.conn.execute(
+    cursor = await ctx.db.conn.execute(
         "SELECT DISTINCT tag, name, schedule, remind_time FROM plans WHERE active = 1"
     )
     plans = await cursor.fetchall()
 
     for row in plans:
-        tag = row[0]
-        name = row[1]
-        schedule = row[2] if row[2] else "daily"
-        remind_time_str = row[3] if row[3] else "20:00"
-
-        plan_data = {"tag": tag, "name": name, "schedule": schedule, "remind_time": remind_time_str}
-
-        try:
-            h, m = (int(x) for x in remind_time_str.split(":"))
-        except ValueError:
-            logger.warning("Invalid remind_time '%s' for plan '%s', defaulting to 20:00", remind_time_str, tag)
-            h, m = 20, 0
-
-        job_time = time(hour=h, minute=m, tzinfo=ctx.tz)
-        days = _parse_schedule_days(schedule)
-        callback = await _make_reminder_callback(ctx, plan_data)
-
-        await scheduler.run_daily(
-            callback,
-            time=job_time,
-            name=f"plan_reminder_{tag}",
-            days=days,
-            data=plan_data,
-        )
-        logger.info(
-            "Scheduled reminder for '%s' at %s (schedule: %s)", tag, remind_time_str, schedule
+        await register_plan_reminder(
+            ctx,
+            tag=row[0],
+            name=row[1],
+            schedule=row[2] if row[2] else "daily",
+            remind_time_str=row[3] if row[3] else "20:00",
         )

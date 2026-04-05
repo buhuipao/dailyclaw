@@ -55,6 +55,13 @@ def _cmd_planner_add(ctx) -> Callable[[Event], Awaitable[str | None]]:
         )
         await db.conn.commit()
 
+        # Register reminder for the new plan immediately
+        try:
+            from .scheduler import register_plan_reminder
+            await register_plan_reminder(ctx, tag, name, schedule, remind_time)
+        except Exception:
+            logger.warning("Failed to register reminder for plan %s", tag, exc_info=True)
+
         schedule_label = _format_schedule(schedule, event.lang)
         return t("planner.add_success", event.lang, name=name, tag=tag, schedule=schedule_label, remind=remind_time)
 
