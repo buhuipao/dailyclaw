@@ -15,3 +15,4 @@ build/
 .coverage
 .pytest_cache/
 .claude/settings.local.json
+docs/superpowers/
