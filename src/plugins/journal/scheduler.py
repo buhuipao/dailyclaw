@@ -26,8 +26,14 @@ def _get_user_lang(ctx: "AppContext", user_id: int) -> str:
 
 
 async def _get_allowed_user_ids(ctx: "AppContext") -> list[int]:
-    """Get allowed user IDs from config."""
-    return ctx.config.get("allowed_user_ids", [])
+    """Get all user IDs from the allowed_users table."""
+    try:
+        cursor = await ctx.db.conn.execute("SELECT user_id FROM allowed_users")
+        rows = await cursor.fetchall()
+        return [row[0] for row in rows]
+    except Exception:
+        logger.warning("Failed to query allowed_users", exc_info=True)
+        return []
 
 
 # ---------------------------------------------------------------------------
@@ -41,8 +47,10 @@ async def _evening_journal_callback(ctx: "AppContext", data: Any = None) -> None
 
     journal_db = JournalDB(ctx.db)
     today = datetime.now(ctx.tz).strftime("%Y-%m-%d")
+    user_ids = await _get_allowed_user_ids(ctx)
+    logger.info("[evening-reminder] triggered for %s, users=%s", today, user_ids)
 
-    for user_id in await _get_allowed_user_ids(ctx):
+    for user_id in user_ids:
         try:
             entries = await journal_db.get_journal_entries(user_id, today)
             if entries:
@@ -67,8 +75,10 @@ async def _auto_journal_callback(ctx: "AppContext", data: Any = None) -> None:
 
     journal_db = JournalDB(ctx.db)
     today = datetime.now(ctx.tz).strftime("%Y-%m-%d")
+    user_ids = await _get_allowed_user_ids(ctx)
+    logger.info("[auto-journal] triggered for %s, users=%s", today, user_ids)
 
-    for user_id in await _get_allowed_user_ids(ctx):
+    for user_id in user_ids:
         try:
             await _auto_journal_for_user(ctx, journal_db, user_id, today)
         except Exception:
