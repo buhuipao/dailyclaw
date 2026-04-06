@@ -4,7 +4,7 @@ VERSION  := 1.0.0.$(shell date +%Y%m%d.%H%M)
 IMAGE    := dailyclaw
 REGISTRY := buhuipao/dailyclaw
 
-.PHONY: help version build wheel docker docker-push push push-multi clean test
+.PHONY: help version build wheel docker docker-push clean test
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
@@ -37,28 +37,10 @@ docker-save: ## Export Docker image to .tar.gz for offline deploy
 	docker save $(IMAGE):latest | gzip > dist/$(IMAGE)-$(VERSION).tar.gz
 	@echo "Saved: dist/$(IMAGE)-$(VERSION).tar.gz"
 
-push: docker-amd64 ## Build amd64 + push to Docker Hub (buhuipao/dailyclaw)
-	docker tag $(IMAGE):$(VERSION) $(REGISTRY):$(VERSION)
-	docker tag $(IMAGE):latest $(REGISTRY):latest
-	docker push $(REGISTRY):$(VERSION)
-	docker push $(REGISTRY):latest
-	@echo "Pushed: $(REGISTRY):$(VERSION) + latest"
-
-push-multi: ## Build multi-platform (amd64+arm64) + push to Docker Hub
+docker-push: ## Build multi-platform (amd64+arm64) + push to Docker Hub
 	docker buildx build --builder multiplatform --platform linux/amd64,linux/arm64 \
 		-t $(REGISTRY):$(VERSION) -t $(REGISTRY):latest --push .
 	@echo "Pushed multi-platform: $(REGISTRY):$(VERSION) + latest (amd64, arm64)"
-
-docker-push: ## Push Docker image to custom registry: make docker-push REPO=your.registry.com/repo
-	@if [ -z "$(REPO)" ]; then echo "Usage: make docker-push REPO=your.registry.com/repo"; exit 1; fi
-	docker tag $(IMAGE):$(VERSION) $(REPO):$(VERSION)
-	docker tag $(IMAGE):latest $(REPO):latest
-	docker push $(REPO):$(VERSION)
-	docker push $(REPO):latest
-
-deploy: push-multi ## Build multi-platform (amd64+arm64) + push to Docker Hub
-
-offline: docker-amd64 docker-save ## Build amd64 + export .tar.gz (offline deploy)
 
 clean: ## Clean build artifacts
 	rm -rf dist/ build/ *.egg-info src/*.egg-info
