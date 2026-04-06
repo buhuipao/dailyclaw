@@ -308,6 +308,15 @@ async def _run(config: dict, tz: ZoneInfo) -> None:
     adapter.register_command(_make_kick_handler(db))
     adapter.register_command(_make_lang_handler(db, adapter))
 
+    # Sync config admin IDs into allowed_users table so that scheduled
+    # jobs, /lang, and other DB-based lookups work for config-defined users.
+    for uid in admin_ids:
+        await db.conn.execute(
+            "INSERT OR IGNORE INTO allowed_users (user_id, added_by) VALUES (?, ?)",
+            (uid, 0),
+        )
+    await db.conn.commit()
+
     # Populate initial lang cache
     async def _refresh_lang_cache() -> None:
         try:
