@@ -222,14 +222,16 @@ async def setup_journal_schedules(ctx: "AppContext") -> None:
     )
     logger.info("Scheduled journal evening prompt at %02d:%02d", hour, minute)
 
-    # Auto-journal at 23:50 — generate from messages if no journal written
-    auto_time = time(hour=23, minute=50, tzinfo=ctx.tz)
+    # Auto-journal — generate from messages if no journal written
+    auto_hour = ctx.config.get("auto_journal_hour", 22)
+    auto_minute = ctx.config.get("auto_journal_minute", 30)
+    auto_time = time(hour=auto_hour, minute=auto_minute, tzinfo=ctx.tz)
     await ctx.scheduler.run_daily(
         callback=lambda data=None: _auto_journal_callback(ctx, data),
         time=auto_time,
         name="journal_auto_generate",
     )
-    logger.info("Scheduled auto-journal at 23:50")
+    logger.info("Scheduled auto-journal at %02d:%02d", auto_hour, auto_minute)
 
     # Weekly summary on Sunday 22:00
     summary_time = time(hour=22, minute=0, tzinfo=ctx.tz)

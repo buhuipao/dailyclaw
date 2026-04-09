@@ -23,6 +23,9 @@ plugins:
   recorder:
     dedup_window: 10
   journal:
-    evening_prompt_time: "21:30"
+    remind_hour: 21
+    remind_minute: 0
+    auto_journal_hour: 22          # auto-generate journal time (default 22:30)
+    auto_journal_minute: 30
     template: "zeng_guofan"
   planner: {}                    # plans are created per-user via /planner_add

@@ -68,7 +68,7 @@ Start `/journal_start` and your bot guides you through four categories:
 Skip any category with "skip". Cancel anytime with `/journal_cancel`.
 
 ### Auto-Journal -- never miss a day
-At **23:50 every night**, if you haven't written a journal but have sent messages, DailyClaw automatically generates a journal entry from your day's recordings using LLM. You'll get a notification before and after.
+At **22:30 every night** (configurable), if you haven't written a journal but have sent messages, DailyClaw automatically generates a journal entry from your day's recordings using LLM. You'll get a notification before and after.
 
 ### Natural Language Routing (Intent Router)
 You don't need to memorize commands. Just send a message and the LLM figures out what you meant:
