@@ -40,6 +40,8 @@ class YourPlugin(BasePlugin):
 | `get_commands()` | Return bot commands (`/your_command`) | Yes |
 | `get_handlers()` | Return message handlers (text, photo, voice, video) | No |
 | `get_conversations()` | Return multi-turn conversation flows | No |
+| `get_intents()` | Return natural language intents (LLM routing) | No |
+| `get_intent_context(user_id)` | Return per-user context for intent routing | No |
 | `on_startup()` | Called once after plugin loads (schedule jobs, etc.) | No |
 | `on_shutdown()` | Called once before bot stops (cleanup) | No |
 
@@ -239,6 +241,53 @@ async def call_external_api(url: str) -> dict:
     ...
 ```
 
+## Optional: Natural Language Intents (Intent Router)
+
+Let users trigger your plugin's features without commands. The IntentRouter uses LLM function-call semantics to match natural language to your plugin and extract arguments.
+
+```python
+from src.core.bot import IntentDeclaration
+
+def get_intents(self) -> list[IntentDeclaration]:
+    return [
+        IntentDeclaration(
+            name="your_plugin_action",
+            description="What this action does (for LLM to understand)",
+            examples=("example message 1", "example message 2"),
+            handler=my_handler,
+            args_description="What the LLM should extract as args for the handler",
+        ),
+    ]
+```
+
+### How it works
+
+1. User sends a plain text message (no `/command`)
+2. IntentRouter sends all plugin intents + user context to LLM
+3. LLM returns `{"action": "your_plugin_action", "confidence": 0.9, "args": "extracted text"}`
+4. If confidence >= 0.7, your handler receives `event.text = "extracted text"`
+5. The message is **always recorded** by the Recorder regardless of intent match
+
+### `args_description` field
+
+This tells the LLM what to extract from the user's message:
+
+| `args_description` | LLM extracts | Handler receives |
+|---------------------|--------------|-----------------|
+| `"The plan TAG to delete"` | `"brush_teeth"` | `event.text = "brush_teeth"` |
+| `"The check-in content"` | `"跑了5公里"` | `event.text = "跑了5公里"` |
+| `None` (omitted) | nothing | `event.text = None` |
+
+### User context
+
+Override `get_intent_context()` to provide per-user context that helps the LLM make better routing decisions:
+
+```python
+async def get_intent_context(self, user_id: int) -> str:
+    # Return user-specific state: active plans, session status, etc.
+    return "Active items:\n  - item_1: description\n  - item_2: description"
+```
+
 ## Checklist
 
 - [ ] `__init__.py` with `BasePlugin` subclass
@@ -248,3 +297,4 @@ async def call_external_api(url: str) -> dict:
 - [ ] `migrations/001_init.sql` if using database
 - [ ] Plugin added to `config.yaml` under `plugins:`
 - [ ] Tests in `tests/test_plugins/test_your_plugin.py`
+- [ ] (Optional) `get_intents()` for natural language routing

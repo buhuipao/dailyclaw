@@ -16,14 +16,14 @@ logger = logging.getLogger(__name__)
 def make_commands(ctx) -> list[Command]:
     """Return Command list with handlers bound to ctx via closures."""
     return [
-        Command(name="planner_add", description="创建新计划", handler=_cmd_planner_add(ctx)),
-        Command(name="planner_del", description="归档计划", handler=_cmd_planner_del(ctx)),
-        Command(name="planner_checkin", description="智能打卡", handler=_cmd_planner_checkin(ctx)),
-        Command(name="planner_list", description="查看计划进度", handler=_cmd_planner_list(ctx)),
+        Command(name="planner_add", description="创建新计划", handler=cmd_planner_add(ctx)),
+        Command(name="planner_del", description="归档计划", handler=cmd_planner_del(ctx)),
+        Command(name="planner_checkin", description="智能打卡", handler=cmd_planner_checkin(ctx)),
+        Command(name="planner_list", description="查看计划进度", handler=cmd_planner_list(ctx)),
     ]
 
 
-def _cmd_planner_add(ctx) -> Callable[[Event], Awaitable[str | None]]:
+def cmd_planner_add(ctx) -> Callable[[Event], Awaitable[str | None]]:
     async def handler(event: Event) -> str | None:
         if not event.text:
             return t("planner.add_usage", event.lang)
@@ -68,7 +68,7 @@ def _cmd_planner_add(ctx) -> Callable[[Event], Awaitable[str | None]]:
     return handler
 
 
-def _cmd_planner_del(ctx) -> Callable[[Event], Awaitable[str | None]]:
+def cmd_planner_del(ctx) -> Callable[[Event], Awaitable[str | None]]:
     async def handler(event: Event) -> str | None:
         if not event.text:
             return t("planner.del_usage", event.lang)
@@ -99,7 +99,7 @@ def _cmd_planner_del(ctx) -> Callable[[Event], Awaitable[str | None]]:
                 break
 
         if not matched_tag:
-            # LLM semantic match
+            # LLM semantic match fallback (for /planner_del command usage)
             result = await llm.match_checkin(text, plans, lang=event.lang)
             matched_tag = result.get("tag", "")
             matched_name = next((p["name"] for p in plans if p["tag"] == matched_tag), "")
@@ -121,7 +121,7 @@ def _cmd_planner_del(ctx) -> Callable[[Event], Awaitable[str | None]]:
     return handler
 
 
-def _cmd_planner_checkin(ctx) -> Callable[[Event], Awaitable[str | None]]:
+def cmd_planner_checkin(ctx) -> Callable[[Event], Awaitable[str | None]]:
     async def handler(event: Event) -> str | None:
         if not event.text:
             return t("planner.checkin_usage", event.lang)
@@ -199,7 +199,7 @@ def _format_schedule(schedule: str, lang: str = "zh") -> str:
     return schedule
 
 
-def _cmd_planner_list(ctx) -> Callable[[Event], Awaitable[str | None]]:
+def cmd_planner_list(ctx) -> Callable[[Event], Awaitable[str | None]]:
     async def handler(event: Event) -> str | None:
         db = ctx.db
         tz = ctx.tz

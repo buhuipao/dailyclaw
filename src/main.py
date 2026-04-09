@@ -9,9 +9,10 @@ from zoneinfo import ZoneInfo
 
 from .adapters.telegram import TelegramAdapter
 from .config import load_config
-from .core.bot import Command, Event
+from .core.bot import Command, Event, MessageHandler, MessageType
 from .core.db import Database, MigrationRunner
 from .core.i18n import t, SUPPORTED_LANGS
+from .core.intent_router import IntentRouter
 from .core.llm import Capability, LLMProvider, LLMService
 from .core.plugin import PluginRegistry
 
@@ -292,13 +293,55 @@ async def _run(config: dict, tz: ZoneInfo) -> None:
     logger.info("Loaded %d plugin(s)", len(plugins))
 
     # 7. Register plugin commands/handlers/conversations
+    #    For TEXT handlers, intercept and wrap with IntentRouter so that
+    #    natural language is routed to the right plugin before falling
+    #    back to the Recorder.
+    text_fallback = None
+    intent_plugins: list[tuple] = []
+
     for plugin in plugins:
         for cmd in plugin.get_commands():
             adapter.register_command(cmd)
+
         for mh in plugin.get_handlers():
-            adapter.register_handler(mh)
+            if mh.msg_type == MessageType.TEXT:
+                text_fallback = mh.handler  # Recorder's text handler
+            else:
+                adapter.register_handler(mh)
+
         for conv in plugin.get_conversations():
             adapter.register_conversation(conv)
+
+        intents = plugin.get_intents()
+        if intents:
+            intent_plugins.append((plugin, intents))
+
+    if intent_plugins and text_fallback is not None:
+        router = IntentRouter.create(
+            llm=llm,
+            recorder_handler=text_fallback,
+            plugin_intents=[
+                (intents, plugin.get_intent_context)
+                for plugin, intents in intent_plugins
+            ],
+        )
+        adapter.register_handler(MessageHandler(
+            msg_type=MessageType.TEXT,
+            handler=router.handle,
+            priority=0,
+        ))
+        logger.info(
+            "IntentRouter active with %d intent(s) from %d plugin(s)",
+            sum(len(i) for _, i in intent_plugins),
+            len(intent_plugins),
+        )
+    elif text_fallback is not None:
+        # No intents declared — register Recorder's text handler directly
+        adapter.register_handler(MessageHandler(
+            msg_type=MessageType.TEXT,
+            handler=text_fallback,
+            priority=0,
+        ))
 
     # 8. Register framework commands (help is generated dynamically per-request)
     adapter.register_command(_make_start_handler())

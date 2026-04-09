@@ -5,7 +5,7 @@ import base64
 import json
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 
 from openai import AsyncOpenAI
@@ -322,6 +322,72 @@ class LLMService:
         except json.JSONDecodeError:
             logger.warning("[LLM] parse_plan returned non-JSON: %r", response[:200])
             return {}
+
+    async def route_intent(
+        self,
+        text: str,
+        intent_descriptions: list[dict[str, str]],
+        user_context: str,
+        lang: str = "en",
+    ) -> list[dict]:
+        """Determine which intent(s) match the user's message and extract args.
+
+        *intent_descriptions* is a list of dicts with keys:
+            name, description, examples (comma-separated string),
+            and optionally args (what the LLM should extract).
+        Returns a list of ``{"action": "<name>", "confidence": 0.0-1.0, "args": "..."}``.
+        """
+        func_lines: list[str] = []
+        for i in intent_descriptions:
+            line = f"- {i['name']}: {i['description']}"
+            if i.get("args"):
+                line += f"\n  args: {i['args']}"
+            line += f"\n  Examples: {i['examples']}"
+            func_lines.append(line)
+        functions_desc = "\n".join(func_lines)
+
+        # Sanitize user_context: cap length and strip control characters to
+        # prevent prompt injection via plan names or other user-supplied data.
+        sanitized_context = user_context[:500].replace("\r", "")
+        system_prompt = (
+            "You are DailyClaw's intent router. Given the user's message and their context, "
+            "determine which action(s) to take and extract the arguments.\n\n"
+            f"Available actions:\n{functions_desc}\n\n"
+            "Return strict JSON array (no markdown wrapping):\n"
+            '[{"action": "action_name", "confidence": 0.85, "args": "extracted arguments"}]\n\n'
+            "Rules:\n"
+            "- confidence: 0.0-1.0, how certain this action matches the user's intent\n"
+            "- args: extract ONLY the essential argument for the action, as described in each action's args field. "
+            "Strip any conversational noise. If the action has no args field, set args to empty string\n"
+            "- When args refers to a plan, use the plan TAG from the user context, not the plan name\n"
+            "- Return multiple actions only if the message CLEARLY maps to multiple\n"
+            "- If no action fits, return empty array []\n"
+            "- Be conservative: casual messages, daily observations, links, thoughts, "
+            "feelings, and general records do NOT match any action — return []\n"
+            "- Only return an action when the user's intent is clearly aligned with it\n"
+            "- action names MUST be one of the available actions listed above"
+        )
+        if len(text) > 500:
+            logger.debug("[LLM] route_intent: truncated input from %d to 500 chars", len(text))
+        response = await self.chat(
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Context:\n{sanitized_context}\n\nMessage:\n{text[:500]}"},
+            ],
+            temperature=0.1,
+            max_tokens=300,
+            lang=lang,
+        )
+        try:
+            result = json.loads(response)
+            if isinstance(result, list):
+                return [
+                    r for r in result
+                    if isinstance(r, dict) and "action" in r and "confidence" in r
+                ]
+        except json.JSONDecodeError:
+            logger.warning("[LLM] route_intent returned non-JSON: %r", response[:200])
+        return []
 
     async def match_checkin(
         self, text: str, plans: list[dict[str, str]], lang: str = "en",

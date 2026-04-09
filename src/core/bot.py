@@ -59,6 +59,23 @@ class ConversationFlow:
     cancel_command: str = "cancel"
 
 
+@dataclass(frozen=True)
+class IntentDeclaration:
+    """A plugin-declared intent that can be triggered by natural language.
+
+    *args_description* tells the LLM what to extract as the handler argument.
+    When set, the router passes the extracted text as ``event.text`` so the
+    handler receives clean, pre-parsed input — just like a ``/command <args>``.
+    When ``None``, the handler receives ``text=None`` (no arguments needed).
+    """
+
+    name: str
+    description: str  # For LLM to understand when this intent applies
+    examples: tuple[str, ...]  # Example user messages
+    handler: Callable[[Event], Awaitable[str | None]]
+    args_description: str | None = None  # What the LLM should extract as args
+
+
 class BotAdapter(ABC):
     @abstractmethod
     async def start(self) -> None: ...

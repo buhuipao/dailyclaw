@@ -70,6 +70,18 @@ Skip any category with "skip". Cancel anytime with `/journal_cancel`.
 ### Auto-Journal -- never miss a day
 At **23:50 every night**, if you haven't written a journal but have sent messages, DailyClaw automatically generates a journal entry from your day's recordings using LLM. You'll get a notification before and after.
 
+### Natural Language Routing (Intent Router)
+You don't need to memorize commands. Just send a message and the LLM figures out what you meant:
+
+| You send | DailyClaw understands |
+|----------|----------------------|
+| "跑了5公里" | Planner check-in (matches your running plan) |
+| "帮我删除刷牙计划" | Delete the brush_teeth plan |
+| "看看我的计划" | Show plan progress |
+| "今天天气不错" | Just a recording (no plan action) |
+
+Every message is **always recorded**. If a plugin action also matches, it runs in parallel. If DailyClaw doesn't catch your intent, it tells you -- describe more clearly or use `/help` for commands.
+
 ### Planning & Habits
 Create plans with natural language, check in with free-form descriptions, track weekly progress with emoji bars.
 
@@ -228,9 +240,10 @@ VISION_API_KEY=sk-xxx
 src/
   core/              # Framework: DB, LLM, i18n, retry, plugin system
     i18n/            # Translation registry (zh/en/ja)
-    bot.py           # Event, Command, BotAdapter ABCs
+    bot.py           # Event, Command, IntentDeclaration, BotAdapter ABCs
     db.py            # SQLite + migration runner
-    llm.py           # Multi-modal LLM service (text/vision)
+    llm.py           # Multi-modal LLM service (text/vision/intent routing)
+    intent_router.py # LLM function-call router (natural language → plugin)
     retry.py         # @with_retry decorator (exponential/fixed/jitter)
     plugin.py        # Auto-discovery plugin system
   adapters/
@@ -243,6 +256,8 @@ src/
 
 **Design principles:**
 - **Plugin-based** -- each feature is a self-contained plugin with its own DB migrations, commands, and locale
+- **Intent-driven** -- the LLM routes natural language to the right plugin, extracting args like function calling
+- **Always-record** -- every message is recorded first, then plugin actions fire in parallel
 - **ACK-first** -- every message gets an immediate acknowledgment, then processes in the background
 - **Retry-resilient** -- all external calls (Telegram API, LLM, HTTP) use `@with_retry` with configurable backoff
 - **Immutable data** -- frozen dataclasses, no mutation, functional style

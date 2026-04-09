@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from collections.abc import Callable
 from datetime import time
 from typing import Any
@@ -80,6 +81,23 @@ class FakeLLMService:
     async def match_checkin(self, text: str, plans: list[dict[str, str]], lang: str = "en") -> dict[str, str]:
         tag = plans[0]["tag"] if plans else ""
         return {"tag": tag, "note": text, "duration_minutes": 0}
+
+    async def route_intent(
+        self,
+        text: str,
+        intent_descriptions: list[dict[str, str]],
+        user_context: str,
+        lang: str = "en",
+    ) -> list[dict]:
+        """Return pre-configured routing decisions. Uses self._responses if JSON."""
+        if self._call_index < len(self._responses):
+            resp = self._responses[self._call_index]
+            self._call_index += 1
+            try:
+                return json.loads(resp)
+            except (json.JSONDecodeError, TypeError):
+                return []
+        return []
 
 
 class FakeBotAdapter(BotAdapter):

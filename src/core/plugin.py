@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from src.core.bot import Command, ConversationFlow, MessageHandler
+from src.core.bot import Command, ConversationFlow, IntentDeclaration, MessageHandler
 from src.core.context import AppContext
 from src.core.db import Database, MigrationRunner
 
@@ -66,6 +66,14 @@ class BasePlugin(ABC):
     def get_conversations(self) -> list[ConversationFlow]:
         """Return the list of conversation flows this plugin provides."""
         return []
+
+    def get_intents(self) -> list[IntentDeclaration]:
+        """Return intent declarations for command-free natural language routing."""
+        return []
+
+    async def get_intent_context(self, user_id: int) -> str:
+        """Return user-specific context string for intent routing (e.g. active plans)."""
+        return ""
 
     async def on_startup(self) -> None:
         """Called once after the plugin is instantiated. Override as needed."""
