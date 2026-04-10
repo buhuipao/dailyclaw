@@ -28,9 +28,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "ja": "⏸ 送信が速すぎます。1分後に再度お試しください。\n（トライアル制限: {rate} 件/分）",
     },
     "trial_daily_quota": {
-        "zh": "📊 今日试用额度已用完（{quota} 条/天）。\n\n想要无限使用？请联系管理员获取邀请。",
-        "en": "📊 Daily trial quota reached ({quota} msgs/day).\n\nWant unlimited access? Contact the admin for an invite.",
-        "ja": "📊 本日のトライアル上限に達しました（{quota} 件/日）。\n\n無制限に使いたい場合は管理者に招待を依頼してください。",
+        "zh": "📊 今日试用额度已用完（{quota} 条/天）。\n\n想要无限使用？请联系管理员获取邀请: tg://user?id={admin_id}",
+        "en": "📊 Daily trial quota reached ({quota} msgs/day).\n\nWant unlimited access? Contact the admin: tg://user?id={admin_id}",
+        "ja": "📊 本日のトライアル上限に達しました（{quota} 件/日）。\n\n無制限利用は管理者に連絡: tg://user?id={admin_id}",
     },
 }
 

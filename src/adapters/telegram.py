@@ -341,9 +341,12 @@ class TelegramAdapter(BotAdapter):
 
         msg = update.effective_message
         if msg:
+            # First admin ID as contact for trial users
+            admin_id = next(iter(self._auth.admin_ids), "")
             if reason == "daily_quota":
                 text = t("adapter.trial_daily_quota", event.lang,
-                         quota=self._rate_limiter.daily_quota)
+                         quota=self._rate_limiter.daily_quota,
+                         admin_id=admin_id)
             else:
                 text = t("adapter.trial_rate_limit", event.lang,
                          rate=self._rate_limiter.rate_per_minute)
