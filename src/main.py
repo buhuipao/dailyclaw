@@ -112,13 +112,15 @@ def _generate_help_text(plugins: list, lang: str = "en", is_admin: bool = False)
             prefix = t("main.admin_suffix", lang) if cmd.admin_only else ""
             lines.append(f"  /{cmd.name} — {localized_desc}{prefix}")
         lines.append("")
+    lines.append(t("main.help_general_section", lang))
+    lines.append(t("main.help_lang", lang))
+    lines.append("")
     if is_admin:
         lines.append(t("main.help_admin_section", lang))
         lines.append(t("main.help_invite", lang))
         lines.append(t("main.help_kick", lang))
-        lines.append(t("main.help_user_list", lang))
-    lines.append(t("main.help_lang", lang))
-    lines.append("")
+        lines.append(t("main.help_stats", lang))
+        lines.append("")
     lines.append(t("main.help_footer", lang))
     return "\n".join(lines)
 
@@ -187,7 +189,7 @@ def _make_kick_handler(db: Database) -> Command:
     return Command(name="kick", description=t("main.cmd.kick"), handler=handler, admin_only=True)
 
 
-def _make_user_list_handler(db: Database) -> Command:
+def _make_stats_handler(db: Database) -> Command:
     async def handler(event: Event) -> str:
         lang = event.lang
         today = datetime.now().strftime("%Y-%m-%d")
@@ -245,7 +247,7 @@ def _make_user_list_handler(db: Database) -> Command:
 
         return "\n".join(lines)
 
-    return Command(name="user_list", description=t("main.cmd.user_list"), handler=handler, admin_only=True)
+    return Command(name="stats", description=t("main.cmd.stats"), handler=handler, admin_only=True)
 
 
 def _make_lang_handler(db: Database, adapter: TelegramAdapter) -> Command:
@@ -422,7 +424,7 @@ async def _run(config: dict, tz: ZoneInfo) -> None:
         adapter.register_command(cmd)
     adapter.register_command(_make_invite_handler(db))
     adapter.register_command(_make_kick_handler(db))
-    adapter.register_command(_make_user_list_handler(db))
+    adapter.register_command(_make_stats_handler(db))
     adapter.register_command(_make_lang_handler(db, adapter))
 
     # Sync config admin IDs into allowed_users table so that scheduled

@@ -7,6 +7,11 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "🦉 *DailyClaw Commands*\n",
         "ja": "🦉 *DailyClaw コマンド一覧*\n",
     },
+    "help_general_section": {
+        "zh": "⚙️ *通用*",
+        "en": "⚙️ *General*",
+        "ja": "⚙️ *一般*",
+    },
     "help_admin_section": {
         "zh": "🔑 *管理员*",
         "en": "🔑 *Admin*",
@@ -123,12 +128,12 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "Language changed to: {lang_name}",
         "ja": "言語を変更しました: {lang_name}",
     },
-    "help_user_list": {
-        "zh": "  /user_list — 查看所有用户使用情况",
-        "en": "  /user_list — View all user usage stats",
-        "ja": "  /user_list — 全ユーザーの利用状況",
+    "help_stats": {
+        "zh": "  /stats — 查看所有用户使用情况",
+        "en": "  /stats — View all user usage stats",
+        "ja": "  /stats — 全ユーザーの利用状況",
     },
-    "cmd.user_list": {
+    "cmd.stats": {
         "zh": "用户使用情况",
         "en": "User usage stats",
         "ja": "ユーザー利用状況",
