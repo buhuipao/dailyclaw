@@ -123,6 +123,41 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "Language changed to: {lang_name}",
         "ja": "言語を変更しました: {lang_name}",
     },
+    "help_user_list": {
+        "zh": "  /user_list — 查看所有用户使用情况",
+        "en": "  /user_list — View all user usage stats",
+        "ja": "  /user_list — 全ユーザーの利用状況",
+    },
+    "cmd.user_list": {
+        "zh": "用户使用情况",
+        "en": "User usage stats",
+        "ja": "ユーザー利用状況",
+    },
+    "user_list_header": {
+        "zh": "👥 *用户使用情况*\n",
+        "en": "👥 *User Usage Stats*\n",
+        "ja": "👥 *ユーザー利用状況*\n",
+    },
+    "user_list_invited": {
+        "zh": "✅ *已邀请用户*",
+        "en": "✅ *Invited Users*",
+        "ja": "✅ *招待済みユーザー*",
+    },
+    "user_list_trial": {
+        "zh": "🆓 *试用用户*",
+        "en": "🆓 *Trial Users*",
+        "ja": "🆓 *トライアルユーザー*",
+    },
+    "user_list_stats": {
+        "zh": "今日 {today} 条 | 总计 {total} 条 | 加入 {joined}",
+        "en": "today {today} | total {total} | joined {joined}",
+        "ja": "今日 {today} 件 | 合計 {total} 件 | 参加 {joined}",
+    },
+    "user_list_empty": {
+        "zh": "暂无用户数据。",
+        "en": "No user data yet.",
+        "ja": "ユーザーデータはまだありません。",
+    },
 }
 
 register("main", STRINGS)

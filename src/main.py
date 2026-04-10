@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
@@ -88,7 +89,7 @@ _PLUGIN_EMOJI: dict[str, str] = {
 }
 
 
-def _generate_help_text(plugins: list, lang: str = "en") -> str:
+def _generate_help_text(plugins: list, lang: str = "en", is_admin: bool = False) -> str:
     """Build /help text from all loaded plugin commands."""
     lines: list[str] = [t("main.help_header", lang)]
     for plugin in plugins:
@@ -111,9 +112,11 @@ def _generate_help_text(plugins: list, lang: str = "en") -> str:
             prefix = t("main.admin_suffix", lang) if cmd.admin_only else ""
             lines.append(f"  /{cmd.name} — {localized_desc}{prefix}")
         lines.append("")
-    lines.append(t("main.help_admin_section", lang))
-    lines.append(t("main.help_invite", lang))
-    lines.append(t("main.help_kick", lang))
+    if is_admin:
+        lines.append(t("main.help_admin_section", lang))
+        lines.append(t("main.help_invite", lang))
+        lines.append(t("main.help_kick", lang))
+        lines.append(t("main.help_user_list", lang))
     lines.append(t("main.help_lang", lang))
     lines.append("")
     lines.append(t("main.help_footer", lang))
@@ -129,7 +132,7 @@ def _make_start_handler() -> Command:
 
 def _make_help_handlers(plugins: list) -> list[Command]:
     async def handler(event: Event) -> str:
-        return _generate_help_text(plugins, event.lang)
+        return _generate_help_text(plugins, event.lang, is_admin=event.is_admin)
 
     return [
         Command(name="help", description=t("main.cmd.help"), handler=handler),
@@ -182,6 +185,67 @@ def _make_kick_handler(db: Database) -> Command:
         return t("main.kick_success", event.lang, id=target_id)
 
     return Command(name="kick", description=t("main.cmd.kick"), handler=handler, admin_only=True)
+
+
+def _make_user_list_handler(db: Database) -> Command:
+    async def handler(event: Event) -> str:
+        lang = event.lang
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        # All invited users
+        cursor = await db.conn.execute(
+            "SELECT user_id, created_at FROM allowed_users ORDER BY created_at",
+        )
+        invited = await cursor.fetchall()
+        invited_ids = {row[0] for row in invited}
+
+        # Per-user message counts (today + total)
+        cursor = await db.conn.execute(
+            "SELECT user_id, "
+            "  COUNT(*) AS total, "
+            "  SUM(CASE WHEN date(created_at) = ? THEN 1 ELSE 0 END) AS today "
+            "FROM messages WHERE deleted_at IS NULL "
+            "GROUP BY user_id ORDER BY total DESC",
+            (today,),
+        )
+        stats = await cursor.fetchall()
+        stat_map = {row[0]: (row[1], row[2]) for row in stats}
+
+        # Also count users from message_queue who aren't in messages yet
+        cursor = await db.conn.execute(
+            "SELECT DISTINCT user_id FROM message_queue "
+            "WHERE user_id NOT IN (SELECT DISTINCT user_id FROM messages WHERE deleted_at IS NULL)",
+        )
+        extra_users = await cursor.fetchall()
+
+        lines = [t("main.user_list_header", lang)]
+
+        # Invited users
+        if invited:
+            lines.append(t("main.user_list_invited", lang))
+            for row in invited:
+                uid = row[0]
+                total, today_count = stat_map.pop(uid, (0, 0))
+                joined = row[1][:10] if row[1] else "?"
+                lines.append(f"  {uid} — {t('main.user_list_stats', lang, today=today_count, total=total, joined=joined)}")
+            lines.append("")
+
+        # Trial users (have messages but not invited)
+        trial_entries = [(uid, total, today_count) for uid, (total, today_count) in stat_map.items()]
+        trial_extra = [(row[0], 0, 0) for row in extra_users if row[0] not in stat_map]
+        trial_all = trial_entries + trial_extra
+
+        if trial_all:
+            lines.append(t("main.user_list_trial", lang))
+            for uid, total, today_count in sorted(trial_all, key=lambda x: -x[1]):
+                lines.append(f"  {uid} — {t('main.user_list_stats', lang, today=today_count, total=total, joined='?')}")
+
+        if not invited and not trial_all:
+            lines.append(t("main.user_list_empty", lang))
+
+        return "\n".join(lines)
+
+    return Command(name="user_list", description=t("main.cmd.user_list"), handler=handler, admin_only=True)
 
 
 def _make_lang_handler(db: Database, adapter: TelegramAdapter) -> Command:
@@ -276,8 +340,8 @@ async def _run(config: dict, tz: ZoneInfo) -> None:
     admin_ids: list[int] = config.get("telegram", {}).get("allowed_user_ids", [])
     trial_cfg = config.get("trial", {})
     rate_limiter = RateLimiter(
-        rate_per_minute=trial_cfg.get("rate_per_minute", 20),
-        daily_quota=trial_cfg.get("daily_quota", 100),
+        rate_per_minute=trial_cfg.get("rate_per_minute", 10),
+        daily_quota=trial_cfg.get("daily_quota", 50),
     )
     adapter = TelegramAdapter(
         token=token, admin_ids=admin_ids, db=db, rate_limiter=rate_limiter,
@@ -358,6 +422,7 @@ async def _run(config: dict, tz: ZoneInfo) -> None:
         adapter.register_command(cmd)
     adapter.register_command(_make_invite_handler(db))
     adapter.register_command(_make_kick_handler(db))
+    adapter.register_command(_make_user_list_handler(db))
     adapter.register_command(_make_lang_handler(db, adapter))
 
     # Sync config admin IDs into allowed_users table so that scheduled

@@ -21,8 +21,8 @@ timezone: "Asia/Shanghai"
 
 # Rate limits for non-invited (trial) users. Invited users have no limits.
 trial:
-  rate_per_minute: 20               # max messages per minute
-  daily_quota: 100                 # max messages per day
+  rate_per_minute: 10               # max messages per minute
+  daily_quota: 50                  # max messages per day
 
 plugins:
   recorder:
