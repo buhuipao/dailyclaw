@@ -201,22 +201,24 @@ def _make_stats_handler(db: Database) -> Command:
         invited = await cursor.fetchall()
         invited_ids = {row[0] for row in invited}
 
-        # Per-user message counts (today + total)
+        # Per-user message counts (today + total + first seen)
         cursor = await db.conn.execute(
             "SELECT user_id, "
             "  COUNT(*) AS total, "
-            "  SUM(CASE WHEN date(created_at) = ? THEN 1 ELSE 0 END) AS today "
+            "  SUM(CASE WHEN date(created_at) = ? THEN 1 ELSE 0 END) AS today, "
+            "  MIN(created_at) AS first_seen "
             "FROM messages WHERE deleted_at IS NULL "
             "GROUP BY user_id ORDER BY total DESC",
             (today,),
         )
         stats = await cursor.fetchall()
-        stat_map = {row[0]: (row[1], row[2]) for row in stats}
+        stat_map = {row[0]: (row[1], row[2], row[3]) for row in stats}
 
-        # Also count users from message_queue who aren't in messages yet
+        # Users from message_queue who aren't in messages yet
         cursor = await db.conn.execute(
-            "SELECT DISTINCT user_id FROM message_queue "
-            "WHERE user_id NOT IN (SELECT DISTINCT user_id FROM messages WHERE deleted_at IS NULL)",
+            "SELECT user_id, MIN(created_at) AS first_seen FROM message_queue "
+            "WHERE user_id NOT IN (SELECT DISTINCT user_id FROM messages WHERE deleted_at IS NULL) "
+            "GROUP BY user_id",
         )
         extra_users = await cursor.fetchall()
 
@@ -227,20 +229,27 @@ def _make_stats_handler(db: Database) -> Command:
             lines.append(t("main.user_list_invited", lang))
             for row in invited:
                 uid = row[0]
-                total, today_count = stat_map.pop(uid, (0, 0))
-                joined = row[1][:10] if row[1] else "?"
+                total, today_count, first_seen = stat_map.pop(uid, (0, 0, None))
+                joined = row[1][:10] if row[1] else (first_seen[:10] if first_seen else "?")
                 lines.append(f"  {uid} — {t('main.user_list_stats', lang, today=today_count, total=total, joined=joined)}")
             lines.append("")
 
         # Trial users (have messages but not invited)
-        trial_entries = [(uid, total, today_count) for uid, (total, today_count) in stat_map.items()]
-        trial_extra = [(row[0], 0, 0) for row in extra_users if row[0] not in stat_map]
+        trial_entries = [
+            (uid, total, today_count, first_seen)
+            for uid, (total, today_count, first_seen) in stat_map.items()
+        ]
+        trial_extra = [
+            (row[0], 0, 0, row[1])
+            for row in extra_users if row[0] not in stat_map
+        ]
         trial_all = trial_entries + trial_extra
 
         if trial_all:
             lines.append(t("main.user_list_trial", lang))
-            for uid, total, today_count in sorted(trial_all, key=lambda x: -x[1]):
-                lines.append(f"  {uid} — {t('main.user_list_stats', lang, today=today_count, total=total, joined='?')}")
+            for uid, total, today_count, first_seen in sorted(trial_all, key=lambda x: -x[1]):
+                joined = first_seen[:10] if first_seen else "?"
+                lines.append(f"  {uid} — {t('main.user_list_stats', lang, today=today_count, total=total, joined=joined)}")
 
         if not invited and not trial_all:
             lines.append(t("main.user_list_empty", lang))
