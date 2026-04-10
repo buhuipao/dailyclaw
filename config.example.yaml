@@ -19,6 +19,11 @@ log_level: "DEBUG"
 
 timezone: "Asia/Shanghai"
 
+# Rate limits for non-invited (trial) users. Invited users have no limits.
+trial:
+  rate_per_minute: 5               # max messages per minute
+  daily_quota: 20                  # max messages per day
+
 plugins:
   recorder:
     dedup_window: 10

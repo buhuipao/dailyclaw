@@ -25,6 +25,7 @@ from src.core.bot import (
     MessageType,
 )
 from src.core.i18n import t
+from src.core.rate_limit import RateLimiter
 from src.core.retry import with_retry
 from src.core.scheduler import Scheduler
 import src.adapters.locale  # noqa: F401  # register translations
@@ -186,10 +187,17 @@ class TelegramAdapter(BotAdapter):
         await adapter.start()
     """
 
-    def __init__(self, token: str, admin_ids: list[int], db: Any = None) -> None:
+    def __init__(
+        self,
+        token: str,
+        admin_ids: list[int],
+        db: Any = None,
+        rate_limiter: RateLimiter | None = None,
+    ) -> None:
         self._token = token
         self._auth = DynamicAuthFilter(admin_ids)
         self._db = db  # Core Database for message queue
+        self._rate_limiter = rate_limiter
         self._help_text: str = ""  # Set by main.py after generating help
         self._commands: list[Command] = []
         self._handlers: list[MessageHandler] = []
@@ -316,6 +324,35 @@ class TelegramAdapter(BotAdapter):
             raise RuntimeError("TelegramAdapter.build() must be called before use")
         return self._app.bot
 
+    async def _check_trial_rate(self, event: Event, update: Update) -> bool:
+        """Check rate limit for non-invited (trial) users.
+
+        Returns True if the request is allowed, False if rate-limited.
+        Invited users and admins always pass.
+        """
+        if self._rate_limiter is None:
+            return True
+        if self._auth.is_authorized(event.user_id):
+            return True  # invited user — no limits
+
+        allowed, reason = self._rate_limiter.check(event.user_id)
+        if allowed:
+            return True
+
+        msg = update.effective_message
+        if msg:
+            if reason == "daily_quota":
+                text = t("adapter.trial_daily_quota", event.lang,
+                         quota=self._rate_limiter.daily_quota)
+            else:
+                text = t("adapter.trial_rate_limit", event.lang,
+                         rate=self._rate_limiter.rate_per_minute)
+            try:
+                await _reply_with_retry(msg, text)
+            except Exception:
+                pass
+        return False
+
     def _make_command_handler(self, cmd: Command):
         auth = self._auth
         db = self._db
@@ -329,6 +366,8 @@ class TelegramAdapter(BotAdapter):
                     await _reply_with_retry(
                         update.effective_message, t("adapter.no_permission", event.lang)
                     )
+                return
+            if not await self._check_trial_rate(event, update):
                 return
             # Strip the /command prefix — event.text should only contain arguments.
             # e.g. "/planner_add 每天学雅思" → "每天学雅思", "/help" → None
@@ -356,6 +395,8 @@ class TelegramAdapter(BotAdapter):
         async def _handler(update: Update, context: Any) -> None:
             event = _build_event(update, auth)
             if event is None:
+                return
+            if not await self._check_trial_rate(event, update):
                 return
             await _ack_and_dispatch(mh.handler, event, update, db, mh.msg_type.value)
 

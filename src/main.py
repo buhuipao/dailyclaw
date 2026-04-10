@@ -269,10 +269,19 @@ async def _run(config: dict, tz: ZoneInfo) -> None:
         [c.value for c in llm._providers],
     )
 
-    # 4. Telegram adapter
+    # 4. Telegram adapter with trial-user rate limiting
+    from .core.rate_limit import RateLimiter
+
     token = config["telegram"]["token"]
     admin_ids: list[int] = config.get("telegram", {}).get("allowed_user_ids", [])
-    adapter = TelegramAdapter(token=token, admin_ids=admin_ids, db=db)
+    trial_cfg = config.get("trial", {})
+    rate_limiter = RateLimiter(
+        rate_per_minute=trial_cfg.get("rate_per_minute", 5),
+        daily_quota=trial_cfg.get("daily_quota", 20),
+    )
+    adapter = TelegramAdapter(
+        token=token, admin_ids=admin_ids, db=db, rate_limiter=rate_limiter,
+    )
 
     # 5. Use a lazy scheduler that defers job registration until the final
     #    Application is built.  This is needed because adapter.build() creates

@@ -22,6 +22,16 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "⛔ No permission",
         "ja": "⛔ 権限がありません",
     },
+    "trial_rate_limit": {
+        "zh": "⏸ 发送太快了，请稍等一分钟再试。\n（试用用户限制: {rate} 条/分钟）",
+        "en": "⏸ Slow down! Please wait a minute before sending more.\n(Trial limit: {rate} msgs/min)",
+        "ja": "⏸ 送信が速すぎます。1分後に再度お試しください。\n（トライアル制限: {rate} 件/分）",
+    },
+    "trial_daily_quota": {
+        "zh": "📊 今日试用额度已用完（{quota} 条/天）。\n\n想要无限使用？请联系管理员获取邀请。",
+        "en": "📊 Daily trial quota reached ({quota} msgs/day).\n\nWant unlimited access? Contact the admin for an invite.",
+        "ja": "📊 本日のトライアル上限に達しました（{quota} 件/日）。\n\n無制限に使いたい場合は管理者に招待を依頼してください。",
+    },
 }
 
 register("adapter", STRINGS)
