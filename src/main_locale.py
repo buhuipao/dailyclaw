@@ -28,9 +28,30 @@ STRINGS: dict[str, dict[str, str]] = {
         "ja": "  /lang <zh|en|ja> — 言語切替",
     },
     "help_footer": {
-        "zh": "💡 /start — 欢迎消息 | /help — 显示帮助",
-        "en": "💡 /start — Welcome | /help — Show help",
-        "ja": "💡 /start — ようこそ | /help — ヘルプ表示",
+        "zh": (
+            "💡 /start — 欢迎消息 | /help — 显示帮助\n\n"
+            "🧠 你也可以直接用自然语言操作，无需输入命令：\n"
+            "  「跑了5公里」→ 自动打卡\n"
+            "  「删除刷牙计划」→ 自动归档\n"
+            "  「看看我的计划」→ 查看进度\n"
+            "所有消息都会被记录，同时智能识别你的意图。"
+        ),
+        "en": (
+            "💡 /start — Welcome | /help — Show help\n\n"
+            "🧠 You can also use natural language — no commands needed:\n"
+            '  "Ran 5km today" → auto check-in\n'
+            '  "Delete the workout plan" → auto archive\n'
+            '  "Show my plans" → view progress\n'
+            "All messages are recorded, and your intent is detected automatically."
+        ),
+        "ja": (
+            "💡 /start — ようこそ | /help — ヘルプ表示\n\n"
+            "🧠 自然言語でも操作できます（コマンド不要）：\n"
+            "  「5km走った」→ 自動チェックイン\n"
+            "  「ランニング計画を削除」→ 自動アーカイブ\n"
+            "  「計画を見せて」→ 進捗表示\n"
+            "すべてのメッセージは記録され、意図は自動的に検出されます。"
+        ),
     },
     "admin_suffix": {
         "zh": " (管理员)",
