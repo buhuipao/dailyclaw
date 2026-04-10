@@ -276,8 +276,8 @@ async def _run(config: dict, tz: ZoneInfo) -> None:
     admin_ids: list[int] = config.get("telegram", {}).get("allowed_user_ids", [])
     trial_cfg = config.get("trial", {})
     rate_limiter = RateLimiter(
-        rate_per_minute=trial_cfg.get("rate_per_minute", 5),
-        daily_quota=trial_cfg.get("daily_quota", 20),
+        rate_per_minute=trial_cfg.get("rate_per_minute", 20),
+        daily_quota=trial_cfg.get("daily_quota", 100),
     )
     adapter = TelegramAdapter(
         token=token, admin_ids=admin_ids, db=db, rate_limiter=rate_limiter,

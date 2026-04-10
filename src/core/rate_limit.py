@@ -14,8 +14,8 @@ class RateLimiter:
 
     def __init__(
         self,
-        rate_per_minute: int = 5,
-        daily_quota: int = 20,
+        rate_per_minute: int = 20,
+        daily_quota: int = 100,
     ) -> None:
         self._rate_per_minute = rate_per_minute
         self._daily_quota = daily_quota
