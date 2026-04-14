@@ -25,12 +25,29 @@ trial:
   daily_quota: 50                  # max messages per day
 
 plugins:
-  recorder:
+  memo:
     dedup_window: 10
-  journal:
+
+  wiki:
+    seed_topics:
+      - { topic: "health", title: "Health & Fitness" }
+      - { topic: "career", title: "Career & Growth" }
+      - { topic: "reading", title: "Reading Notes" }
+      - { topic: "ideas", title: "Ideas & Inspiration" }
+    ingest_hour: 22
+    ingest_minute: 30
+    digest_day: "sunday"
+    digest_hour: 21
+    nudge_enabled: true
+    nudge_threshold: 0.85
+    nudge_max_per_day: 3
+    lint_day: 1                    # day of month
+
+  reflect:
     remind_hour: 21
     remind_minute: 0
-    auto_journal_hour: 22          # auto-generate journal time (default 22:30)
+    auto_journal_hour: 22
     auto_journal_minute: 30
     template: "zeng_guofan"
-  planner: {}                    # plans are created per-user via /planner_add
+
+  track: {}                      # goals created per-user via /goal
