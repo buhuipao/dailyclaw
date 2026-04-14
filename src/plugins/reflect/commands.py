@@ -62,9 +62,6 @@ async def cmd_cancel(event: "Event") -> str:
 
 async def cmd_review(event: "Event") -> str:
     """Handle /review [YYYY-MM-DD] — review journal from date to today."""
-    from .db import JournalDB
-    from .summary import generate_summary
-
     ctx = _get_ctx()
     lang = event.lang
     text = (event.text or "").strip()
@@ -77,6 +74,31 @@ async def cmd_review(event: "Event") -> str:
         start_date = text
     else:
         start_date = (datetime.now(ctx.tz) - timedelta(days=6)).strftime("%Y-%m-%d")
+
+    # Try wiki query first
+    try:
+        from src.plugins.wiki.db import WikiDB
+        wiki_db = WikiDB(ctx.db)
+        index = await wiki_db.get_topic_index(event.user_id)
+        if index:
+            from src.plugins.wiki.query import answer_question
+            question = (
+                f"Review and summarize my life from {start_date} to {today}. "
+                "Cover themes, progress, mood, and any patterns."
+            )
+            result = await answer_question(
+                llm=ctx.llm, wiki_db=wiki_db, db=ctx.db,
+                user_id=event.user_id, question=question, lang=lang,
+            )
+            return f"📊 {start_date} ~ {today}\n\n{result}"
+    except ImportError:
+        pass
+    except Exception:
+        logger.debug("[review] wiki query failed, falling back to legacy", exc_info=True)
+
+    # Fallback: legacy summary
+    from .db import JournalDB
+    from .summary import generate_summary
 
     journal_db = JournalDB(ctx.db)
     result = await generate_summary(
