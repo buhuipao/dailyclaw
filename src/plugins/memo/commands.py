@@ -1,4 +1,4 @@
-"""Recorder plugin commands."""
+"""Memo plugin commands."""
 from __future__ import annotations
 
 import io
@@ -11,7 +11,7 @@ from PIL import Image, ImageDraw, ImageFont
 from src.core.bot import Event
 from src.core.i18n import t
 
-import src.plugins.recorder.locale  # noqa: F401
+import src.plugins.memo.locale  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -171,8 +171,8 @@ def render_heatmap(
     return buf.getvalue()
 
 
-async def recorder_list(db: object, tz: object, event: Event) -> dict[str, Any] | str:
-    """Handle /recorder_list — show heatmap of recording frequency (last 3 months)."""
+async def memo_heatmap(db: object, tz: object, event: Event) -> dict[str, Any] | str:
+    """Handle /heatmap — show heatmap of recording frequency (last 3 months)."""
     now = datetime.now(tz)
     end_date = now.replace(hour=0, minute=0, second=0, microsecond=0)
     start_date = end_date - timedelta(days=90)
@@ -191,13 +191,13 @@ async def recorder_list(db: object, tz: object, event: Event) -> dict[str, Any] 
     active_days = len(counts)
 
     photo_bytes = render_heatmap(counts, start_date, end_date, lang=event.lang)
-    caption = t("recorder.heatmap_caption", event.lang, total=total, days=active_days)
+    caption = t("memo.heatmap_caption", event.lang, total=total, days=active_days)
 
     return {"photo": photo_bytes, "caption": caption}
 
 
-async def recorder_del(db: object, event: Event) -> str | None:
-    """Handle /recorder_del <id> — soft delete a recorded message.
+async def memo_del(db: object, event: Event) -> str | None:
+    """Handle /del <id> — soft delete a recorded message.
 
     Validates that the ID is a valid integer, the message exists,
     and the requesting user owns that message before soft-deleting.
@@ -206,21 +206,21 @@ async def recorder_del(db: object, event: Event) -> str | None:
     """
     text = (event.text or "").strip()
     if not text or not text.lstrip("-").isdigit():
-        return t("recorder.del_usage", event.lang)
+        return t("memo.del_usage", event.lang)
 
     record_id = int(text)
     if record_id <= 0:
-        return t("recorder.del_invalid_id", event.lang)
+        return t("memo.del_invalid_id", event.lang)
 
     row = await _fetch_message(db, record_id)
     if row is None:
-        return t("recorder.del_not_found", event.lang, id=record_id)
+        return t("memo.del_not_found", event.lang, id=record_id)
 
     if row["user_id"] != event.user_id:
-        return t("recorder.del_no_permission", event.lang)
+        return t("memo.del_no_permission", event.lang)
 
     if row["deleted_at"] is not None:
-        return t("recorder.del_already_deleted", event.lang, id=record_id)
+        return t("memo.del_already_deleted", event.lang, id=record_id)
 
     deleted_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     await db.conn.execute(
@@ -229,12 +229,12 @@ async def recorder_del(db: object, event: Event) -> str | None:
     )
     await db.conn.commit()
 
-    logger.info("[recorder_del] soft-deleted id=%d user=%d", record_id, event.user_id)
-    return t("recorder.del_success", event.lang, id=record_id)
+    logger.info("[memo_del] soft-deleted id=%d user=%d", record_id, event.user_id)
+    return t("memo.del_success", event.lang, id=record_id)
 
 
-async def recorder_today(db: object, tz: object, event: Event) -> str | None:
-    """Handle /recorder_today — show today's recorded messages."""
+async def memo_today(db: object, tz: object, event: Event) -> str | None:
+    """Handle /today — show today's recorded messages."""
     today = datetime.now(tz).strftime("%Y-%m-%d")
     cursor = await db.conn.execute(
         "SELECT id, msg_type, content, category, created_at FROM messages "
@@ -245,9 +245,9 @@ async def recorder_today(db: object, tz: object, event: Event) -> str | None:
     rows = await cursor.fetchall()
 
     if not rows:
-        return t("recorder.today_empty", event.lang, date=today)
+        return t("memo.today_empty", event.lang, date=today)
 
-    lines = [t("recorder.today_header", event.lang, date=today, count=len(rows))]
+    lines = [t("memo.today_header", event.lang, date=today, count=len(rows))]
     for row in rows[-15:]:  # show last 15
         prefix = {"link": "🔗", "photo": "📷", "voice": "🎤", "video": "🎬"}.get(
             row["msg_type"], "💬"
@@ -258,7 +258,7 @@ async def recorder_today(db: object, tz: object, event: Event) -> str | None:
         lines.append(f"  {prefix} #{row['id']} {content}")
 
     if len(rows) > 15:
-        lines.append(t("recorder.today_more", event.lang, count=len(rows) - 15))
+        lines.append(t("memo.today_more", event.lang, count=len(rows) - 15))
 
     return "\n".join(lines)
 

@@ -19,7 +19,7 @@ from src.core.bot import Event, MessageHandler, MessageType
 from src.core.i18n import t
 from src.core.i18n.shared import category_label
 
-import src.plugins.recorder.locale  # noqa: F401
+import src.plugins.memo.locale  # noqa: F401
 
 from .dedup import check_dedup
 from .url_fetcher import extract_readable_text, fetch_url
@@ -80,29 +80,29 @@ def _make_text_handler(ctx: object):
         if dedup is not None:
             row_id = await _apply_dedup(db, user_id, dedup, text, msg_type, category, metadata)
             if row_id is None:
-                return t("recorder.dedup_skip", event.lang)
+                return t("memo.dedup_skip", event.lang)
             cat_label = category_label(category, event.lang)
             summary = classification.get("summary", "")
-            reply = t("recorder.text_updated", event.lang, cat=cat_label, id=row_id)
+            reply = t("memo.text_updated", event.lang, cat=cat_label, id=row_id)
             if summary and summary != text[:50]:
                 reply += f"\n📝 {summary}"
-            reply += t("recorder.delete_hint", event.lang, id=row_id)
+            reply += t("memo.delete_hint", event.lang, id=row_id)
             return reply
 
         row_id = await _insert_message(db, user_id, msg_type, text, category, metadata)
         if row_id is None:
-            return t("recorder.dedup_skip", event.lang)
+            return t("memo.dedup_skip", event.lang)
 
         cat_label = category_label(category, event.lang)
         summary = classification.get("summary", "")
-        reply = t("recorder.text_recorded", event.lang, cat=cat_label, id=row_id)
+        reply = t("memo.text_recorded", event.lang, cat=cat_label, id=row_id)
         if summary and summary != text[:50]:
             reply += f"\n📝 {summary}"
         if url_summary:
-            reply += t("recorder.url_summary_label", event.lang, summary=url_summary)
+            reply += t("memo.url_summary_label", event.lang, summary=url_summary)
         else:
-            reply += t("recorder.text_more_prompt", event.lang)
-        reply += t("recorder.delete_hint", event.lang, id=row_id)
+            reply += t("memo.text_more_prompt", event.lang)
+        reply += t("memo.delete_hint", event.lang, id=row_id)
         return reply
 
     return handle_text
@@ -132,7 +132,7 @@ def _make_photo_handler(ctx: object):
             (user_id, f'%"hash": "{img_hash}"%'),
         )
         if await dup.fetchone():
-            return t("recorder.dedup_skip", event.lang)
+            return t("memo.dedup_skip", event.lang)
         meta: dict = {"file_id": file_id, "size": len(image_bytes), "hash": img_hash}
         analysis = ""
 
@@ -145,17 +145,17 @@ def _make_photo_handler(ctx: object):
             meta["vision_analysis"] = analysis
 
         metadata = json.dumps(meta, ensure_ascii=False)
-        content = caption or analysis or t("recorder.media_placeholder.photo", event.lang)
+        content = caption or analysis or t("memo.media_placeholder.photo", event.lang)
         row_id = await _insert_message(db, user_id, "photo", content, None, metadata)
         if row_id is None:
-            return t("recorder.dedup_skip", event.lang)
+            return t("memo.dedup_skip", event.lang)
 
-        reply = t("recorder.photo_recorded", event.lang, id=row_id)
+        reply = t("memo.photo_recorded", event.lang, id=row_id)
         if caption:
-            reply += t("recorder.photo_note", event.lang, caption=caption)
+            reply += t("memo.photo_note", event.lang, caption=caption)
         if analysis:
-            reply += t("recorder.photo_analysis", event.lang, analysis=analysis)
-        reply += t("recorder.delete_hint", event.lang, id=row_id)
+            reply += t("memo.photo_analysis", event.lang, analysis=analysis)
+        reply += t("memo.delete_hint", event.lang, id=row_id)
         return reply
 
     return handle_photo
@@ -181,11 +181,11 @@ def _make_voice_handler(ctx: object):
 
         metadata = json.dumps(meta, ensure_ascii=False)
         row_id = await _insert_message(
-            db, user_id, "voice", t("recorder.media_placeholder.voice", event.lang), None, metadata,
+            db, user_id, "voice", t("memo.media_placeholder.voice", event.lang), None, metadata,
         )
 
-        reply = t("recorder.voice_recorded", event.lang, id=row_id)
-        reply += t("recorder.delete_hint", event.lang, id=row_id)
+        reply = t("memo.voice_recorded", event.lang, id=row_id)
+        reply += t("memo.delete_hint", event.lang, id=row_id)
         return reply
 
     return handle_voice
@@ -211,13 +211,13 @@ def _make_video_handler(ctx: object):
             meta["local_path"] = local_path
 
         metadata = json.dumps(meta, ensure_ascii=False)
-        content = caption or t("recorder.media_placeholder.video", event.lang)
+        content = caption or t("memo.media_placeholder.video", event.lang)
         row_id = await _insert_message(db, user_id, "video", content, None, metadata)
 
-        reply = t("recorder.video_recorded", event.lang, id=row_id)
+        reply = t("memo.video_recorded", event.lang, id=row_id)
         if caption:
-            reply += t("recorder.video_note", event.lang, caption=caption)
-        reply += t("recorder.delete_hint", event.lang, id=row_id)
+            reply += t("memo.video_note", event.lang, caption=caption)
+        reply += t("memo.delete_hint", event.lang, id=row_id)
         return reply
 
     return handle_video

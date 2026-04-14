@@ -1,4 +1,4 @@
-"""Recorder plugin translations."""
+"""Memo plugin translations."""
 from src.core.i18n import register
 
 STRINGS: dict[str, dict[str, str]] = {
@@ -14,9 +14,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "ja": "📊 記録ヒートマップ\n{total} 件の記録、{days} 日間アクティブ",
     },
     "del_usage": {
-        "zh": "❌ 请提供要删除的记录 ID，例如：/recorder_del 42",
-        "en": "❌ Please provide a record ID, e.g.: /recorder_del 42",
-        "ja": "❌ 記録IDを指定してください。例：/recorder_del 42",
+        "zh": "❌ 请提供要删除的记录 ID，例如：/del 42",
+        "en": "❌ Please provide a record ID, e.g.: /del 42",
+        "ja": "❌ 記録IDを指定してください。例：/del 42",
     },
     "del_invalid_id": {
         "zh": "❌ 记录 ID 必须是正整数。",
@@ -85,9 +85,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "ja": "\n\n他に補足はありますか？",
     },
     "delete_hint": {
-        "zh": "\n\n有误？发送 /recorder_del {id}",
-        "en": "\n\nWrong? Send /recorder_del {id}",
-        "ja": "\n\n間違い？ /recorder_del {id} で削除",
+        "zh": "\n\n有误？发送 /del {id}",
+        "en": "\n\nWrong? Send /del {id}",
+        "ja": "\n\n間違い？ /del {id} で削除",
     },
     "photo_recorded": {
         "zh": "📷 图片已记录 (#{id})。",
@@ -168,11 +168,11 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "Delete a record",
         "ja": "記録を削除",
     },
-    "cmd.list": {
+    "cmd.heatmap": {
         "zh": "记录热力图",
         "en": "Recording heatmap",
         "ja": "記録ヒートマップ",
     },
 }
 
-register("recorder", STRINGS)
+register("memo", STRINGS)
