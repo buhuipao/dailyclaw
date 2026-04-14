@@ -85,9 +85,9 @@ async def registry_with_plugins(tmp_path):
 
     config = {
         "plugins": {
-            "recorder": {},
-            "journal": {},
-            "planner": {},
+            "memo": {},
+            "reflect": {},
+            "track": {},
         }
     }
 
@@ -121,7 +121,7 @@ async def test_full_plugin_discovery(registry_with_plugins):
 
     names = [p.name for p in plugins]
     assert names == sorted(names), "Plugins should be loaded in alphabetical order"
-    assert set(names) == {"journal", "planner", "recorder"}
+    assert set(names) == {"memo", "reflect", "track"}
 
 
 @pytest.mark.asyncio
@@ -135,17 +135,16 @@ async def test_all_commands_registered(registry_with_plugins):
             all_commands.add(cmd.name)
 
     expected = {
-        "recorder_today",
-        "recorder_del",
-        "recorder_list",
-        "journal_start",
-        "journal_today",
-        "journal_review",
-        "journal_cancel",
-        "planner_add",
-        "planner_del",
-        "planner_checkin",
-        "planner_list",
+        "today",
+        "del",
+        "heatmap",
+        "reflect",
+        "review",
+        "cancel",
+        "goal",
+        "drop",
+        "checkin",
+        "goals",
     }
 
     missing = expected - all_commands

@@ -1,4 +1,4 @@
-"""Tests for the planner plugin."""
+"""Tests for the track plugin."""
 from __future__ import annotations
 
 from zoneinfo import ZoneInfo
@@ -10,25 +10,25 @@ from src.core.context import AppContext
 from src.core.db import Database, MigrationRunner
 
 
-MIGRATIONS_DIR = "src/plugins/planner/migrations"
+MIGRATIONS_DIR = "src/plugins/track/migrations"
 TZ = ZoneInfo("Asia/Shanghai")
 
 
 @pytest_asyncio.fixture
 async def planner_db(tmp_path):
-    """Provide a Database with planner migrations applied."""
-    db_path = str(tmp_path / "test_planner.db")
+    """Provide a Database with track migrations applied."""
+    db_path = str(tmp_path / "test_track.db")
     database = Database(db_path=db_path)
     await database.connect()
     runner = MigrationRunner(database)
-    await runner.run("planner", MIGRATIONS_DIR)
+    await runner.run("track", MIGRATIONS_DIR)
     yield database
     await database.close()
 
 
 @pytest_asyncio.fixture
 async def ctx(planner_db, fake_llm, fake_bot, fake_scheduler):
-    """Provide an AppContext backed by the planner DB."""
+    """Provide an AppContext backed by the track DB."""
     return AppContext(
         db=planner_db,
         llm=fake_llm(),
@@ -109,7 +109,7 @@ async def test_archive_plan_sets_active_zero(planner_db):
 @pytest.mark.asyncio
 async def test_check_needs_reminder_true_when_no_checkins(planner_db):
     """check_needs_reminder returns True when no checkin exists for today."""
-    from src.plugins.planner.reminder import check_needs_reminder
+    from src.plugins.track.reminder import check_needs_reminder
 
     result = await check_needs_reminder(planner_db, user_id=1, tag="ielts", date="2026-04-04")
     assert result is True
@@ -118,7 +118,7 @@ async def test_check_needs_reminder_true_when_no_checkins(planner_db):
 @pytest.mark.asyncio
 async def test_check_needs_reminder_false_when_checkin_exists(planner_db):
     """check_needs_reminder returns False when a checkin exists for today."""
-    from src.plugins.planner.reminder import check_needs_reminder
+    from src.plugins.track.reminder import check_needs_reminder
 
     await planner_db.conn.execute(
         "INSERT INTO plan_checkins (user_id, tag, date, note, duration_minutes) VALUES (?, ?, ?, ?, ?)",
@@ -133,7 +133,7 @@ async def test_check_needs_reminder_false_when_checkin_exists(planner_db):
 @pytest.mark.asyncio
 async def test_check_needs_reminder_different_date_still_true(planner_db):
     """check_needs_reminder returns True when checkin exists for a different date."""
-    from src.plugins.planner.reminder import check_needs_reminder
+    from src.plugins.track.reminder import check_needs_reminder
 
     await planner_db.conn.execute(
         "INSERT INTO plan_checkins (user_id, tag, date, note, duration_minutes) VALUES (?, ?, ?, ?, ?)",
@@ -154,10 +154,10 @@ async def test_check_needs_reminder_different_date_still_true(planner_db):
 async def test_cmd_planner_add_creates_plan(ctx):
     """cmd_planner_add inserts a plan row and returns confirmation."""
     from src.core.bot import Event
-    from src.plugins.planner.commands import make_commands
+    from src.plugins.track.commands import make_commands
 
     commands = make_commands(ctx)
-    handler = next(c.handler for c in commands if c.name == "planner_add")
+    handler = next(c.handler for c in commands if c.name == "goal")
 
     event = Event(user_id=1, chat_id=1, lang="zh", text="每天学雅思，晚上8点提醒")
     reply = await handler(event)
@@ -175,10 +175,10 @@ async def test_cmd_planner_add_creates_plan(ctx):
 async def test_cmd_planner_add_missing_text_returns_usage(ctx):
     """cmd_planner_add with no text returns usage string."""
     from src.core.bot import Event
-    from src.plugins.planner.commands import make_commands
+    from src.plugins.track.commands import make_commands
 
     commands = make_commands(ctx)
-    handler = next(c.handler for c in commands if c.name == "planner_add")
+    handler = next(c.handler for c in commands if c.name == "goal")
 
     event = Event(user_id=1, chat_id=1, lang="zh", text=None)
     reply = await handler(event)
@@ -191,7 +191,7 @@ async def test_cmd_planner_add_missing_text_returns_usage(ctx):
 async def test_cmd_planner_add_duplicate_tag_blocked(ctx):
     """cmd_planner_add blocks inserting a duplicate active tag."""
     from src.core.bot import Event
-    from src.plugins.planner.commands import make_commands
+    from src.plugins.track.commands import make_commands
 
     # Seed an existing plan with the same tag the FakeLLMService returns ("test")
     await ctx.db.conn.execute(
@@ -201,7 +201,7 @@ async def test_cmd_planner_add_duplicate_tag_blocked(ctx):
     await ctx.db.conn.commit()
 
     commands = make_commands(ctx)
-    handler = next(c.handler for c in commands if c.name == "planner_add")
+    handler = next(c.handler for c in commands if c.name == "goal")
 
     event = Event(user_id=1, chat_id=1, lang="zh", text="重复的计划")
     reply = await handler(event)
@@ -214,7 +214,7 @@ async def test_cmd_planner_add_duplicate_tag_blocked(ctx):
 async def test_cmd_planner_checkin_saves_record(ctx):
     """cmd_planner_checkin saves a checkin row."""
     from src.core.bot import Event
-    from src.plugins.planner.commands import make_commands
+    from src.plugins.track.commands import make_commands
 
     # Seed a plan (FakeLLMService.match_checkin returns first plan's tag)
     await ctx.db.conn.execute(
@@ -224,7 +224,7 @@ async def test_cmd_planner_checkin_saves_record(ctx):
     await ctx.db.conn.commit()
 
     commands = make_commands(ctx)
-    handler = next(c.handler for c in commands if c.name == "planner_checkin")
+    handler = next(c.handler for c in commands if c.name == "checkin")
 
     event = Event(user_id=1, chat_id=1, lang="zh", text="今天练了30分钟")
     reply = await handler(event)
@@ -242,23 +242,23 @@ async def test_cmd_planner_checkin_saves_record(ctx):
 async def test_cmd_planner_checkin_no_plans(ctx):
     """cmd_planner_checkin returns guidance when no plans exist."""
     from src.core.bot import Event
-    from src.plugins.planner.commands import make_commands
+    from src.plugins.track.commands import make_commands
 
     commands = make_commands(ctx)
-    handler = next(c.handler for c in commands if c.name == "planner_checkin")
+    handler = next(c.handler for c in commands if c.name == "checkin")
 
     event = Event(user_id=1, chat_id=1, lang="zh", text="跑了5公里")
     reply = await handler(event)
 
     assert reply is not None
-    assert "planner_add" in reply
+    assert "goal" in reply
 
 
 @pytest.mark.asyncio
 async def test_cmd_planner_list_shows_progress(ctx):
     """cmd_planner_list formats the progress bar."""
     from src.core.bot import Event
-    from src.plugins.planner.commands import make_commands
+    from src.plugins.track.commands import make_commands
 
     await ctx.db.conn.execute(
         "INSERT INTO plans (user_id, tag, name, schedule, remind_time) VALUES (?, ?, ?, ?, ?)",
@@ -267,7 +267,7 @@ async def test_cmd_planner_list_shows_progress(ctx):
     await ctx.db.conn.commit()
 
     commands = make_commands(ctx)
-    handler = next(c.handler for c in commands if c.name == "planner_list")
+    handler = next(c.handler for c in commands if c.name == "goals")
 
     event = Event(user_id=1, chat_id=1, lang="zh", text=None)
     reply = await handler(event)
@@ -281,7 +281,7 @@ async def test_cmd_planner_list_shows_progress(ctx):
 async def test_cmd_planner_del_archives_plan(ctx):
     """cmd_planner_del sets active = 0 for the matched plan."""
     from src.core.bot import Event
-    from src.plugins.planner.commands import make_commands
+    from src.plugins.track.commands import make_commands
 
     await ctx.db.conn.execute(
         "INSERT INTO plans (user_id, tag, name, schedule, remind_time) VALUES (?, ?, ?, ?, ?)",
@@ -290,7 +290,7 @@ async def test_cmd_planner_del_archives_plan(ctx):
     await ctx.db.conn.commit()
 
     commands = make_commands(ctx)
-    handler = next(c.handler for c in commands if c.name == "planner_del")
+    handler = next(c.handler for c in commands if c.name == "drop")
 
     # FakeLLMService.match_checkin returns first plan's tag ("test")
     event = Event(user_id=1, chat_id=1, lang="zh", text="待归档计划")
@@ -314,7 +314,7 @@ async def test_cmd_planner_del_archives_plan(ctx):
 async def test_setup_plan_reminders_registers_jobs(planner_db, fake_bot, fake_scheduler):
     """setup_plan_reminders creates a run_daily job per active plan."""
     from src.core.context import AppContext
-    from src.plugins.planner.scheduler import setup_plan_reminders
+    from src.plugins.track.scheduler import setup_plan_reminders
 
     await planner_db.conn.execute(
         "INSERT INTO plans (user_id, tag, name, schedule, remind_time) VALUES (?, ?, ?, ?, ?)",

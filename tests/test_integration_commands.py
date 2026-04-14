@@ -51,9 +51,9 @@ async def full_ctx(tmp_path):
     scheduler = FakeScheduler()
     config = {
         "plugins": {
-            "recorder": {},
-            "journal": {"remind_hour": 21, "remind_minute": 0},
-            "planner": {},
+            "memo": {},
+            "reflect": {"remind_hour": 21, "remind_minute": 0},
+            "track": {},
         }
     }
 
@@ -94,24 +94,24 @@ def _find_conversation(plugins, conv_name: str) -> ConversationFlow:
 
 
 class TestJournalConversationFlow:
-    """Verify the full journal_start → answer → ... → complete flow."""
+    """Verify the full reflect → answer → ... → complete flow."""
 
     @pytest.mark.asyncio
     async def test_conversation_flow_has_entry_handler(self, full_ctx):
         """ConversationFlow should carry entry_handler (not just entry_command)."""
         _ctx, plugins, _reg = full_ctx
-        conv = _find_conversation(plugins, "journal_reflection")
+        conv = _find_conversation(plugins, "reflect_session")
 
-        assert conv.entry_command == "journal_start"
+        assert conv.entry_command == "reflect"
         assert conv.entry_handler is not None
         assert callable(conv.entry_handler)
-        assert conv.cancel_command == "journal_cancel"
+        assert conv.cancel_command == "cancel"
 
     @pytest.mark.asyncio
     async def test_journal_start_returns_prompt(self, full_ctx):
-        """cmd_journal_start should create a session and return the LLM prompt."""
+        """cmd_reflect should create a session and return the LLM prompt."""
         ctx, plugins, _reg = full_ctx
-        conv = _find_conversation(plugins, "journal_reflection")
+        conv = _find_conversation(plugins, "reflect_session")
 
         event = _ev(100)
         result = await conv.entry_handler(event)
@@ -123,7 +123,7 @@ class TestJournalConversationFlow:
     async def test_journal_start_duplicate_session_blocked(self, full_ctx):
         """Starting a second session should return a warning, not crash."""
         _ctx, plugins, _reg = full_ctx
-        conv = _find_conversation(plugins, "journal_reflection")
+        conv = _find_conversation(plugins, "reflect_session")
 
         event = _ev(200)
         await conv.entry_handler(event)
@@ -132,12 +132,12 @@ class TestJournalConversationFlow:
         assert "正在进行" in second
 
         # Cleanup session
-        cancel = _find_handler(plugins, "journal_cancel")
+        cancel = _find_handler(plugins, "cancel")
         await cancel(event)
 
     @pytest.mark.asyncio
     async def test_journal_full_flow_four_answers(self, full_ctx):
-        """Full 4-step journal flow: start → 4 answers → completion tuple."""
+        """Full 4-step reflect flow: start → 4 answers → completion tuple."""
         ctx, plugins, _reg = full_ctx
         # Provide enough LLM responses for the whole flow
         ctx.llm._responses = [
@@ -149,7 +149,7 @@ class TestJournalConversationFlow:
         ]
         ctx.llm._call_index = 0
 
-        conv = _find_conversation(plugins, "journal_reflection")
+        conv = _find_conversation(plugins, "reflect_session")
         state_handler = list(conv.states.values())[0]
 
         event = _ev(300)
@@ -183,9 +183,9 @@ class TestJournalConversationFlow:
 
     @pytest.mark.asyncio
     async def test_journal_answer_no_session_returns_none(self, full_ctx):
-        """journal_answer_handler returns None when no session exists."""
+        """reflect_answer_handler returns None when no session exists."""
         _ctx, plugins, _reg = full_ctx
-        conv = _find_conversation(plugins, "journal_reflection")
+        conv = _find_conversation(plugins, "reflect_session")
         state_handler = list(conv.states.values())[0]
 
         event = _ev(999, text="random message")
@@ -195,11 +195,11 @@ class TestJournalConversationFlow:
 
     @pytest.mark.asyncio
     async def test_journal_cancel_clears_session(self, full_ctx):
-        """journal_cancel should remove active session."""
+        """cancel should remove active session."""
         _ctx, plugins, _reg = full_ctx
-        conv = _find_conversation(plugins, "journal_reflection")
+        conv = _find_conversation(plugins, "reflect_session")
         state_handler = list(conv.states.values())[0]
-        cancel = _find_handler(plugins, "journal_cancel")
+        cancel = _find_handler(plugins, "cancel")
 
         event = _ev(400)
         await conv.entry_handler(event)
@@ -231,7 +231,7 @@ class TestPlannerListDetail:
         )
         await ctx.db.conn.commit()
 
-        handler = _find_handler(plugins, "planner_list")
+        handler = _find_handler(plugins, "goals")
         reply = await handler(_ev(1))
 
         assert "每天学雅思" in reply
@@ -250,7 +250,7 @@ class TestPlannerListDetail:
         )
         await ctx.db.conn.commit()
 
-        handler = _find_handler(plugins, "planner_list")
+        handler = _find_handler(plugins, "goals")
         reply = await handler(_ev(2))
 
         assert "锻炼" in reply
@@ -279,7 +279,7 @@ class TestPlannerListDetail:
             )
         await ctx.db.conn.commit()
 
-        handler = _find_handler(plugins, "planner_list")
+        handler = _find_handler(plugins, "goals")
         reply = await handler(_ev(3))
 
         # Should show last 3 (most recent first)
@@ -302,7 +302,7 @@ class TestPlannerListDetail:
         )
         await ctx.db.conn.commit()
 
-        handler = _find_handler(plugins, "planner_list")
+        handler = _find_handler(plugins, "goals")
         reply = await handler(_ev(4))
 
         assert "暂无打卡记录" in reply
@@ -312,10 +312,10 @@ class TestPlannerListDetail:
         """planner_list returns guidance when no plans exist."""
         _ctx, plugins, _reg = full_ctx
 
-        handler = _find_handler(plugins, "planner_list")
+        handler = _find_handler(plugins, "goals")
         reply = await handler(_ev(999))
 
-        assert "planner_add" in reply
+        assert "goal" in reply
 
 
 # ===========================================================================
@@ -331,7 +331,7 @@ class TestRecorderCommands:
         """recorder_today returns empty message when no records exist."""
         _ctx, plugins, _reg = full_ctx
 
-        handler = _find_handler(plugins, "recorder_today")
+        handler = _find_handler(plugins, "today")
         reply = await handler(_ev(1))
 
         assert reply is not None
@@ -342,7 +342,7 @@ class TestRecorderCommands:
         """recorder_del with no text returns usage."""
         _ctx, plugins, _reg = full_ctx
 
-        handler = _find_handler(plugins, "recorder_del")
+        handler = _find_handler(plugins, "del")
         reply = await handler(_ev(1, text=None))
 
         assert reply is not None
@@ -353,7 +353,7 @@ class TestRecorderCommands:
         """recorder_list returns photo dict with 0 records when no data."""
         _ctx, plugins, _reg = full_ctx
 
-        handler = _find_handler(plugins, "recorder_list")
+        handler = _find_handler(plugins, "heatmap")
         result = await handler(_ev(1))
 
         assert isinstance(result, dict)
@@ -378,7 +378,7 @@ class TestRecorderCommands:
                 )
         await ctx.db.conn.commit()
 
-        handler = _find_handler(plugins, "recorder_list")
+        handler = _find_handler(plugins, "heatmap")
         result = await handler(_ev(7))
 
         assert isinstance(result, dict)
@@ -404,7 +404,7 @@ class TestRecorderCommands:
         )
         await ctx.db.conn.commit()
 
-        handler = _find_handler(plugins, "recorder_list")
+        handler = _find_handler(plugins, "heatmap")
         result = await handler(_ev(8))
 
         assert "共 1 条记录" in result["caption"]
@@ -424,7 +424,7 @@ class TestRecorderCommands:
         )
         await ctx.db.conn.commit()
 
-        handler = _find_handler(plugins, "recorder_today")
+        handler = _find_handler(plugins, "today")
         reply = await handler(_ev(5))
 
         assert "今天天气不错" in reply
@@ -438,7 +438,7 @@ class TestPlannerCommands:
         """planner_add with no text returns usage."""
         _ctx, plugins, _reg = full_ctx
 
-        handler = _find_handler(plugins, "planner_add")
+        handler = _find_handler(plugins, "goal")
         reply = await handler(_ev(1, text=None))
 
         assert "用法" in reply
@@ -448,7 +448,7 @@ class TestPlannerCommands:
         """planner_checkin with no text returns usage."""
         _ctx, plugins, _reg = full_ctx
 
-        handler = _find_handler(plugins, "planner_checkin")
+        handler = _find_handler(plugins, "checkin")
         reply = await handler(_ev(1, text=None))
 
         assert "用法" in reply
@@ -458,7 +458,7 @@ class TestPlannerCommands:
         """planner_del with no text returns usage."""
         _ctx, plugins, _reg = full_ctx
 
-        handler = _find_handler(plugins, "planner_del")
+        handler = _find_handler(plugins, "drop")
         reply = await handler(_ev(1, text=None))
 
         assert "用法" in reply
@@ -468,9 +468,9 @@ class TestPlannerCommands:
         """Full flow: add plan → check in → list shows progress."""
         ctx, plugins, _reg = full_ctx
 
-        add_handler = _find_handler(plugins, "planner_add")
-        checkin_handler = _find_handler(plugins, "planner_checkin")
-        list_handler = _find_handler(plugins, "planner_list")
+        add_handler = _find_handler(plugins, "goal")
+        checkin_handler = _find_handler(plugins, "checkin")
+        list_handler = _find_handler(plugins, "goals")
 
         # Add a plan
         reply = await add_handler(_ev(10, text="每天学雅思，晚上8点提醒"))
@@ -494,7 +494,7 @@ class TestJournalCommands:
         """journal_today returns guidance when no entries exist."""
         _ctx, plugins, _reg = full_ctx
 
-        handler = _find_handler(plugins, "journal_today")
+        handler = _find_handler(plugins, "today")
         reply = await handler(_ev(1))
 
         assert "还没有" in reply
@@ -504,7 +504,7 @@ class TestJournalCommands:
         """journal_cancel returns message when no active session."""
         _ctx, plugins, _reg = full_ctx
 
-        handler = _find_handler(plugins, "journal_cancel")
+        handler = _find_handler(plugins, "cancel")
         reply = await handler(_ev(1))
 
         assert "没有进行中" in reply
@@ -525,7 +525,7 @@ class TestJournalCommands:
         )
         await ctx.db.conn.commit()
 
-        handler = _find_handler(plugins, "journal_today")
+        handler = _find_handler(plugins, "today")
         reply = await handler(_ev(6))
 
         # Header should contain today's date
@@ -542,7 +542,7 @@ class TestJournalSummaryCommand:
         """journal_review returns empty message when no entries."""
         _ctx, plugins, _reg = full_ctx
 
-        handler = _find_handler(plugins, "journal_review")
+        handler = _find_handler(plugins, "review")
         reply = await handler(_ev(1, text=None))
 
         assert reply is not None
@@ -559,7 +559,7 @@ class TestJournalSummaryCommand:
         )
         await ctx.db.conn.commit()
 
-        handler = _find_handler(plugins, "journal_review")
+        handler = _find_handler(plugins, "review")
         reply = await handler(_ev(60, text="2026-04-01"))
 
         assert "2026-04-01" in reply
@@ -569,10 +569,10 @@ class TestJournalSummaryCommand:
         """journal_review with bad date shows usage."""
         _ctx, plugins, _reg = full_ctx
 
-        handler = _find_handler(plugins, "journal_review")
+        handler = _find_handler(plugins, "review")
         reply = await handler(_ev(1, text="bad-date"))
 
-        assert "/journal_review" in reply
+        assert "/review" in reply
 
 
 # ===========================================================================
@@ -604,8 +604,8 @@ class TestAutoJournal:
         ]
         ctx.llm._call_index = 0
 
-        from src.plugins.journal.scheduler import _auto_journal_for_user
-        from src.plugins.journal.db import JournalDB
+        from src.plugins.reflect.scheduler import _auto_journal_for_user
+        from src.plugins.reflect.db import JournalDB
 
         journal_db = JournalDB(ctx.db)
         await _auto_journal_for_user(ctx, journal_db, user_id=50, today=today)
@@ -633,8 +633,8 @@ class TestAutoJournal:
         )
         await ctx.db.conn.commit()
 
-        from src.plugins.journal.scheduler import _auto_journal_for_user
-        from src.plugins.journal.db import JournalDB
+        from src.plugins.reflect.scheduler import _auto_journal_for_user
+        from src.plugins.reflect.db import JournalDB
 
         journal_db = JournalDB(ctx.db)
         await _auto_journal_for_user(ctx, journal_db, user_id=51, today=today)
@@ -648,8 +648,8 @@ class TestAutoJournal:
         ctx, plugins, _reg = full_ctx
         today = datetime.now(TZ).strftime("%Y-%m-%d")
 
-        from src.plugins.journal.scheduler import _auto_journal_for_user
-        from src.plugins.journal.db import JournalDB
+        from src.plugins.reflect.scheduler import _auto_journal_for_user
+        from src.plugins.reflect.db import JournalDB
 
         journal_db = JournalDB(ctx.db)
         await _auto_journal_for_user(ctx, journal_db, user_id=52, today=today)

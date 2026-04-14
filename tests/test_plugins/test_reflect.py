@@ -1,4 +1,4 @@
-"""Tests for the journal plugin."""
+"""Tests for the reflect plugin."""
 from __future__ import annotations
 
 import pytest
@@ -141,7 +141,7 @@ async def test_summaries_table_accepts_inserts(db):
 @pytest.mark.asyncio
 async def test_engine_drives_through_all_four_categories():
     """JournalEngine should step through morning→reading→social→reflection."""
-    from src.plugins.journal.engine import JOURNAL_FLOW, JournalEngine
+    from src.plugins.reflect.engine import JOURNAL_FLOW, JournalEngine
 
     llm = FakeLLMService(responses=[
         "你今天几点起床？",       # start() → morning prompt
@@ -189,7 +189,7 @@ async def test_engine_drives_through_all_four_categories():
 @pytest.mark.asyncio
 async def test_engine_handles_skip_keywords():
     """Answering with a skip keyword should advance without saving an entry."""
-    from src.plugins.journal.engine import JournalEngine
+    from src.plugins.reflect.engine import JournalEngine
 
     llm = FakeLLMService(responses=[
         "你今天几点起床？",
@@ -228,7 +228,7 @@ async def test_engine_handles_skip_keywords():
 @pytest.mark.asyncio
 async def test_engine_already_complete_returns_done_message():
     """Calling answer() on a completed engine should return the done message."""
-    from src.plugins.journal.engine import JournalEngine
+    from src.plugins.reflect.engine import JournalEngine
 
     # Provide enough responses for a full run
     responses = [
@@ -257,7 +257,7 @@ async def test_engine_already_complete_returns_done_message():
 @pytest.mark.asyncio
 async def test_engine_start_when_already_complete():
     """start() on a completed engine returns done message."""
-    from src.plugins.journal.engine import JournalEngine
+    from src.plugins.reflect.engine import JournalEngine
 
     responses = [
         "morning", "reading", "social", "reflection", "closing",

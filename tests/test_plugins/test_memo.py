@@ -1,4 +1,4 @@
-"""Tests for the recorder plugin."""
+"""Tests for the memo plugin."""
 from __future__ import annotations
 
 import json
@@ -12,7 +12,7 @@ from src.core.bot import Event
 
 # Migration directories
 _SRC_ROOT = Path(__file__).parent.parent.parent / "src"
-_RECORDER_MIGRATIONS = str(_SRC_ROOT / "plugins" / "recorder" / "migrations")
+_MEMO_MIGRATIONS = str(_SRC_ROOT / "plugins" / "memo" / "migrations")
 _CORE_MIGRATIONS = str(_SRC_ROOT / "core" / "migrations")
 
 
@@ -21,14 +21,14 @@ _CORE_MIGRATIONS = str(_SRC_ROOT / "core" / "migrations")
 # ---------------------------------------------------------------------------
 
 @pytest_asyncio.fixture
-async def recorder_db(tmp_path):
-    """In-memory Database with core + recorder migrations applied."""
-    db_path = str(tmp_path / "recorder_test.db")
+async def memo_db(tmp_path):
+    """In-memory Database with core + memo migrations applied."""
+    db_path = str(tmp_path / "memo_test.db")
     db = Database(db_path=db_path)
     await db.connect()
     runner = MigrationRunner(db)
     await runner.run("core", _CORE_MIGRATIONS)
-    await runner.run("recorder", _RECORDER_MIGRATIONS)
+    await runner.run("memo", _MEMO_MIGRATIONS)
     yield db
     await db.close()
 
@@ -62,9 +62,9 @@ class FakeLLM:
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_messages_table_schema(recorder_db):
+async def test_messages_table_schema(memo_db):
     """Messages table should be created with all columns including deleted_at."""
-    db = recorder_db
+    db = memo_db
     cursor = await db.conn.execute(
         "INSERT INTO messages (user_id, msg_type, content) VALUES (?, ?, ?)",
         (111, "text", "test content"),
@@ -85,9 +85,9 @@ async def test_messages_table_schema(recorder_db):
 
 
 @pytest.mark.asyncio
-async def test_messages_deleted_at_accepts_value(recorder_db):
+async def test_messages_deleted_at_accepts_value(memo_db):
     """deleted_at column should accept a timestamp value."""
-    db = recorder_db
+    db = memo_db
     cursor = await db.conn.execute(
         "INSERT INTO messages (user_id, msg_type, content, deleted_at) VALUES (?, ?, ?, ?)",
         (111, "text", "soft deleted content", "2026-01-01T00:00:00Z"),
@@ -107,9 +107,9 @@ async def test_messages_deleted_at_accepts_value(recorder_db):
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_soft_delete_filters_out(recorder_db):
+async def test_soft_delete_filters_out(memo_db):
     """Active messages are returned; soft-deleted ones are excluded."""
-    db = recorder_db
+    db = memo_db
     # Insert one active and one soft-deleted message for same user
     await db.conn.execute(
         "INSERT INTO messages (user_id, msg_type, content) VALUES (?, ?, ?)",
@@ -137,9 +137,9 @@ async def test_soft_delete_filters_out(recorder_db):
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_message_queue_insert_and_status(recorder_db):
+async def test_message_queue_insert_and_status(memo_db):
     """message_queue table should accept inserts and status updates."""
-    db = recorder_db
+    db = memo_db
     payload = json.dumps({"text": "hello"}, ensure_ascii=False)
 
     cursor = await db.conn.execute(
@@ -181,11 +181,11 @@ async def test_message_queue_insert_and_status(recorder_db):
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_dedup_detects_duplicate(recorder_db):
+async def test_dedup_detects_duplicate(memo_db):
     """check_dedup returns a dict when LLM says it's a duplicate."""
-    from src.plugins.recorder.dedup import check_dedup
+    from src.plugins.memo.dedup import check_dedup
 
-    db = recorder_db
+    db = memo_db
     # Insert an existing message
     cursor = await db.conn.execute(
         "INSERT INTO messages (user_id, msg_type, content) VALUES (?, ?, ?)",
@@ -216,11 +216,11 @@ async def test_dedup_detects_duplicate(recorder_db):
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_dedup_returns_none_when_not_duplicate(recorder_db):
+async def test_dedup_returns_none_when_not_duplicate(memo_db):
     """check_dedup returns None when LLM says no duplicate."""
-    from src.plugins.recorder.dedup import check_dedup
+    from src.plugins.memo.dedup import check_dedup
 
-    db = recorder_db
+    db = memo_db
     # Insert an existing message
     await db.conn.execute(
         "INSERT INTO messages (user_id, msg_type, content) VALUES (?, ?, ?)",
@@ -236,11 +236,11 @@ async def test_dedup_returns_none_when_not_duplicate(recorder_db):
 
 
 @pytest.mark.asyncio
-async def test_dedup_returns_none_when_no_history(recorder_db):
+async def test_dedup_returns_none_when_no_history(memo_db):
     """check_dedup returns None when user has no prior messages."""
-    from src.plugins.recorder.dedup import check_dedup
+    from src.plugins.memo.dedup import check_dedup
 
-    db = recorder_db
+    db = memo_db
     llm = FakeLLM([])  # Will never be called
 
     result = await check_dedup(db, llm, 999, "brand new user message")
@@ -249,15 +249,15 @@ async def test_dedup_returns_none_when_no_history(recorder_db):
 
 
 # ---------------------------------------------------------------------------
-# 6. recorder_del validates ID and ownership
+# 6. memo_del validates ID and ownership
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_recorder_del_soft_deletes_own_message(recorder_db):
-    """recorder_del should soft-delete a message owned by the caller."""
-    from src.plugins.recorder.commands import recorder_del
+async def test_memo_del_soft_deletes_own_message(memo_db):
+    """memo_del should soft-delete a message owned by the caller."""
+    from src.plugins.memo.commands import memo_del
 
-    db = recorder_db
+    db = memo_db
     cursor = await db.conn.execute(
         "INSERT INTO messages (user_id, msg_type, content) VALUES (?, ?, ?)",
         (666, "text", "my message"),
@@ -266,7 +266,7 @@ async def test_recorder_del_soft_deletes_own_message(recorder_db):
     msg_id = cursor.lastrowid
 
     event = Event(user_id=666, chat_id=9001, text=str(msg_id))
-    reply = await recorder_del(db, event)
+    reply = await memo_del(db, event)
 
     assert reply is not None
     assert "✅" in reply
@@ -280,11 +280,11 @@ async def test_recorder_del_soft_deletes_own_message(recorder_db):
 
 
 @pytest.mark.asyncio
-async def test_recorder_del_rejects_wrong_owner(recorder_db):
-    """recorder_del should refuse to delete another user's message."""
-    from src.plugins.recorder.commands import recorder_del
+async def test_memo_del_rejects_wrong_owner(memo_db):
+    """memo_del should refuse to delete another user's message."""
+    from src.plugins.memo.commands import memo_del
 
-    db = recorder_db
+    db = memo_db
     cursor = await db.conn.execute(
         "INSERT INTO messages (user_id, msg_type, content) VALUES (?, ?, ?)",
         (777, "text", "owner's message"),
@@ -294,7 +294,7 @@ async def test_recorder_del_rejects_wrong_owner(recorder_db):
 
     # Different user tries to delete it
     event = Event(user_id=888, chat_id=9001, text=str(msg_id))
-    reply = await recorder_del(db, event)
+    reply = await memo_del(db, event)
 
     assert reply is not None
     assert "❌" in reply
@@ -308,50 +308,50 @@ async def test_recorder_del_rejects_wrong_owner(recorder_db):
 
 
 @pytest.mark.asyncio
-async def test_recorder_del_invalid_id(recorder_db):
-    """recorder_del should return an error for non-numeric IDs."""
-    from src.plugins.recorder.commands import recorder_del
+async def test_memo_del_invalid_id(memo_db):
+    """memo_del should return an error for non-numeric IDs."""
+    from src.plugins.memo.commands import memo_del
 
-    db = recorder_db
+    db = memo_db
     event = Event(user_id=999, chat_id=9001, text="abc")
-    reply = await recorder_del(db, event)
+    reply = await memo_del(db, event)
 
     assert reply is not None
     assert "❌" in reply
 
 
 @pytest.mark.asyncio
-async def test_recorder_del_missing_id(recorder_db):
-    """recorder_del should return an error when no ID is provided."""
-    from src.plugins.recorder.commands import recorder_del
+async def test_memo_del_missing_id(memo_db):
+    """memo_del should return an error when no ID is provided."""
+    from src.plugins.memo.commands import memo_del
 
-    db = recorder_db
+    db = memo_db
     event = Event(user_id=999, chat_id=9001, text=None)
-    reply = await recorder_del(db, event)
+    reply = await memo_del(db, event)
 
     assert reply is not None
     assert "❌" in reply
 
 
 @pytest.mark.asyncio
-async def test_recorder_del_nonexistent_message(recorder_db):
-    """recorder_del should return an error for IDs that don't exist."""
-    from src.plugins.recorder.commands import recorder_del
+async def test_memo_del_nonexistent_message(memo_db):
+    """memo_del should return an error for IDs that don't exist."""
+    from src.plugins.memo.commands import memo_del
 
-    db = recorder_db
+    db = memo_db
     event = Event(user_id=999, chat_id=9001, text="99999")
-    reply = await recorder_del(db, event)
+    reply = await memo_del(db, event)
 
     assert reply is not None
     assert "❌" in reply
 
 
 @pytest.mark.asyncio
-async def test_recorder_del_already_deleted(recorder_db):
-    """recorder_del should return an error if the message is already deleted."""
-    from src.plugins.recorder.commands import recorder_del
+async def test_memo_del_already_deleted(memo_db):
+    """memo_del should return an error if the message is already deleted."""
+    from src.plugins.memo.commands import memo_del
 
-    db = recorder_db
+    db = memo_db
     cursor = await db.conn.execute(
         "INSERT INTO messages (user_id, msg_type, content, deleted_at) VALUES (?, ?, ?, ?)",
         (100, "text", "already gone", "2026-01-01T00:00:00Z"),
@@ -360,7 +360,7 @@ async def test_recorder_del_already_deleted(recorder_db):
     msg_id = cursor.lastrowid
 
     event = Event(user_id=100, chat_id=9001, text=str(msg_id))
-    reply = await recorder_del(db, event)
+    reply = await memo_del(db, event)
 
     assert reply is not None
     assert "❌" in reply
