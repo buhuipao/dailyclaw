@@ -1,4 +1,4 @@
-"""Planner plugin command handlers — plan creation, archival, checkin, progress."""
+"""Track plugin command handlers — plan creation, archival, checkin, progress."""
 from __future__ import annotations
 
 import logging
@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from src.core.bot import Command, Event
 from src.core.i18n import t
 
-import src.plugins.planner.locale  # noqa: F401
+import src.plugins.track.locale  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -16,17 +16,17 @@ logger = logging.getLogger(__name__)
 def make_commands(ctx) -> list[Command]:
     """Return Command list with handlers bound to ctx via closures."""
     return [
-        Command(name="planner_add", description="创建新计划", handler=cmd_planner_add(ctx)),
-        Command(name="planner_del", description="归档计划", handler=cmd_planner_del(ctx)),
-        Command(name="planner_checkin", description="智能打卡", handler=cmd_planner_checkin(ctx)),
-        Command(name="planner_list", description="查看计划进度", handler=cmd_planner_list(ctx)),
+        Command(name="goal", description="创建新计划", handler=cmd_goal(ctx)),
+        Command(name="drop", description="归档计划", handler=cmd_drop(ctx)),
+        Command(name="checkin", description="智能打卡", handler=cmd_checkin(ctx)),
+        Command(name="goals", description="查看计划进度", handler=cmd_goals(ctx)),
     ]
 
 
-def cmd_planner_add(ctx) -> Callable[[Event], Awaitable[str | None]]:
+def cmd_goal(ctx) -> Callable[[Event], Awaitable[str | None]]:
     async def handler(event: Event) -> str | None:
         if not event.text:
-            return t("planner.add_usage", event.lang)
+            return t("track.add_usage", event.lang)
 
         db = ctx.db
         llm = ctx.llm
@@ -34,7 +34,7 @@ def cmd_planner_add(ctx) -> Callable[[Event], Awaitable[str | None]]:
 
         parsed = await llm.parse_plan(event.text, lang=event.lang)
         if not parsed.get("tag") or not parsed.get("name"):
-            return t("planner.add_parse_fail", event.lang)
+            return t("track.add_parse_fail", event.lang)
 
         tag = parsed["tag"]
         name = parsed["name"]
@@ -47,7 +47,7 @@ def cmd_planner_add(ctx) -> Callable[[Event], Awaitable[str | None]]:
             (user_id, tag),
         )
         if await cursor.fetchone() is not None:
-            return t("planner.add_duplicate", event.lang, tag=tag)
+            return t("track.add_duplicate", event.lang, tag=tag)
 
         await db.conn.execute(
             "INSERT INTO plans (user_id, tag, name, schedule, remind_time) VALUES (?, ?, ?, ?, ?)",
@@ -63,15 +63,15 @@ def cmd_planner_add(ctx) -> Callable[[Event], Awaitable[str | None]]:
             logger.warning("Failed to register reminder for plan %s", tag, exc_info=True)
 
         schedule_label = _format_schedule(schedule, event.lang)
-        return t("planner.add_success", event.lang, name=name, tag=tag, schedule=schedule_label, remind=remind_time)
+        return t("track.add_success", event.lang, name=name, tag=tag, schedule=schedule_label, remind=remind_time)
 
     return handler
 
 
-def cmd_planner_del(ctx) -> Callable[[Event], Awaitable[str | None]]:
+def cmd_drop(ctx) -> Callable[[Event], Awaitable[str | None]]:
     async def handler(event: Event) -> str | None:
         if not event.text:
-            return t("planner.del_usage", event.lang)
+            return t("track.del_usage", event.lang)
 
         db = ctx.db
         llm = ctx.llm
@@ -85,7 +85,7 @@ def cmd_planner_del(ctx) -> Callable[[Event], Awaitable[str | None]]:
         rows = await cursor.fetchall()
 
         if not rows:
-            return t("planner.del_no_plans", event.lang)
+            return t("track.del_no_plans", event.lang)
 
         plans = [{"tag": r[0], "name": r[1]} for r in rows]
 
@@ -99,14 +99,14 @@ def cmd_planner_del(ctx) -> Callable[[Event], Awaitable[str | None]]:
                 break
 
         if not matched_tag:
-            # LLM semantic match fallback (for /planner_del command usage)
+            # LLM semantic match fallback (for /drop command usage)
             result = await llm.match_checkin(text, plans, lang=event.lang)
             matched_tag = result.get("tag", "")
             matched_name = next((p["name"] for p in plans if p["tag"] == matched_tag), "")
 
         if not matched_tag or not matched_name:
             plan_list = "\n".join(f"  • {p['name']} [{p['tag']}]" for p in plans)
-            return t("planner.del_no_match", event.lang, list=plan_list)
+            return t("track.del_no_match", event.lang, list=plan_list)
 
         result = await db.conn.execute(
             "UPDATE plans SET active = 0 WHERE user_id = ? AND tag = ? AND active = 1",
@@ -115,16 +115,16 @@ def cmd_planner_del(ctx) -> Callable[[Event], Awaitable[str | None]]:
         await db.conn.commit()
 
         if result.rowcount and result.rowcount > 0:
-            return t("planner.del_success", event.lang, name=matched_name, tag=matched_tag)
-        return t("planner.del_not_found", event.lang, tag=matched_tag)
+            return t("track.del_success", event.lang, name=matched_name, tag=matched_tag)
+        return t("track.del_not_found", event.lang, tag=matched_tag)
 
     return handler
 
 
-def cmd_planner_checkin(ctx) -> Callable[[Event], Awaitable[str | None]]:
+def cmd_checkin(ctx) -> Callable[[Event], Awaitable[str | None]]:
     async def handler(event: Event) -> str | None:
         if not event.text:
-            return t("planner.checkin_usage", event.lang)
+            return t("track.checkin_usage", event.lang)
 
         db = ctx.db
         llm = ctx.llm
@@ -139,7 +139,7 @@ def cmd_planner_checkin(ctx) -> Callable[[Event], Awaitable[str | None]]:
         rows = await cursor.fetchall()
 
         if not rows:
-            return t("planner.checkin_no_plans", event.lang)
+            return t("track.checkin_no_plans", event.lang)
 
         plans = [{"tag": r[0], "name": r[1]} for r in rows]
 
@@ -152,7 +152,7 @@ def cmd_planner_checkin(ctx) -> Callable[[Event], Awaitable[str | None]]:
         matched_plan = next((p for p in plans if p["tag"] == tag), None)
         if not matched_plan:
             plan_names = ", ".join(f"「{p['name']}」" for p in plans)
-            return t("planner.checkin_no_match", event.lang, names=plan_names)
+            return t("track.checkin_no_match", event.lang, names=plan_names)
 
         await db.conn.execute(
             "INSERT INTO plan_checkins (user_id, tag, date, note, duration_minutes) VALUES (?, ?, ?, ?, ?)",
@@ -170,12 +170,12 @@ def cmd_planner_checkin(ctx) -> Callable[[Event], Awaitable[str | None]]:
         week_rows = await cursor.fetchall()
         unique_days = len(week_rows)
 
-        reply = t("planner.checkin_success", event.lang, name=matched_plan['name'])
+        reply = t("track.checkin_success", event.lang, name=matched_plan['name'])
         if note:
             reply += f" - {note}"
         if duration:
-            reply += f" ({t('planner.minutes', event.lang, n=duration)})"
-        reply += t("planner.checkin_week_count", event.lang, count=unique_days)
+            reply += f" ({t('track.minutes', event.lang, n=duration)})"
+        reply += t("track.checkin_week_count", event.lang, count=unique_days)
 
         return reply
 
@@ -199,7 +199,7 @@ def _format_schedule(schedule: str, lang: str = "zh") -> str:
     return schedule
 
 
-def cmd_planner_list(ctx) -> Callable[[Event], Awaitable[str | None]]:
+def cmd_goals(ctx) -> Callable[[Event], Awaitable[str | None]]:
     async def handler(event: Event) -> str | None:
         db = ctx.db
         tz = ctx.tz
@@ -215,9 +215,9 @@ def cmd_planner_list(ctx) -> Callable[[Event], Awaitable[str | None]]:
         rows = await cursor.fetchall()
 
         if not rows:
-            return t("planner.list_empty", event.lang)
+            return t("track.list_empty", event.lang)
 
-        lines = [t("planner.list_header", event.lang)]
+        lines = [t("track.list_header", event.lang)]
 
         for row in rows:
             tag, name, schedule, remind_time = row[0], row[1], row[2], row[3]
@@ -248,24 +248,31 @@ def cmd_planner_list(ctx) -> Callable[[Event], Awaitable[str | None]]:
 
             schedule_label = _format_schedule(schedule, event.lang)
             lines.append(f"📌 {name} [{tag}]")
-            lines.append(t("planner.list_frequency", event.lang, schedule=schedule_label, remind=remind_time))
-            lines.append(t("planner.list_week_bar", event.lang, bar=bar, done=unique_days, expected=expected))
+            lines.append(t("track.list_frequency", event.lang, schedule=schedule_label, remind=remind_time))
+            lines.append(t("track.list_week_bar", event.lang, bar=bar, done=unique_days, expected=expected))
 
             if recent_rows:
-                lines.append(t("planner.list_recent_header", event.lang))
+                lines.append(t("track.list_recent_header", event.lang))
                 for r in recent_rows:
                     date_str, note, duration = r[0], r[1], r[2]
                     entry = f"     {date_str}"
                     if note:
                         entry += f" — {note}"
                     if duration:
-                        entry += f" ({t('planner.minutes', event.lang, n=duration)})"
+                        entry += f" ({t('track.minutes', event.lang, n=duration)})"
                     lines.append(entry)
             else:
-                lines.append(t("planner.list_no_checkins", event.lang))
+                lines.append(t("track.list_no_checkins", event.lang))
 
             lines.append("")  # blank line between plans
 
         return "\n".join(lines).rstrip()
 
     return handler
+
+
+# Keep aliases for backward compatibility with intent handler refs
+cmd_planner_add = cmd_goal
+cmd_planner_del = cmd_drop
+cmd_planner_checkin = cmd_checkin
+cmd_planner_list = cmd_goals

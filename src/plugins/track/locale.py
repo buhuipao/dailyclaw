@@ -1,4 +1,4 @@
-"""Planner plugin translations."""
+"""Track plugin translations."""
 from src.core.i18n import register
 
 STRINGS: dict[str, dict[str, str]] = {
@@ -7,15 +7,15 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "Plans & check-ins — goal tracking with smart matching",
         "ja": "計画とチェックイン — 目標追跡とスマートマッチング",
     },
-    "cmd.add": {"zh": "创建新计划", "en": "Create a new plan", "ja": "新しい計画を作成"},
-    "cmd.del": {"zh": "归档计划", "en": "Archive a plan", "ja": "計画をアーカイブ"},
+    "cmd.goal": {"zh": "创建新计划", "en": "Create a new plan", "ja": "新しい計画を作成"},
+    "cmd.drop": {"zh": "归档计划", "en": "Archive a plan", "ja": "計画をアーカイブ"},
     "cmd.checkin": {"zh": "智能打卡", "en": "Smart check-in", "ja": "スマートチェックイン"},
-    "cmd.list": {"zh": "查看计划进度", "en": "View plan progress", "ja": "計画の進捗を見る"},
-    # planner_add
+    "cmd.goals": {"zh": "查看计划进度", "en": "View plan progress", "ja": "計画の進捗を見る"},
+    # goal (add)
     "add_usage": {
-        "zh": "用法: /planner_add <描述>\n例如: /planner_add 每天学雅思，晚上8点提醒\n例如: /planner_add 每周一三五锻炼，7点提醒",
-        "en": "Usage: /planner_add <description>\nE.g.: /planner_add Study IELTS daily, remind at 8pm\nE.g.: /planner_add Exercise Mon/Wed/Fri, remind at 7am",
-        "ja": "使い方: /planner_add <説明>\n例: /planner_add 毎日IELTS勉強、夜8時リマインド\n例: /planner_add 月水金運動、朝7時リマインド",
+        "zh": "用法: /goal <描述>\n例如: /goal 每天学雅思，晚上8点提醒\n例如: /goal 每周一三五锻炼，7点提醒",
+        "en": "Usage: /goal <description>\nE.g.: /goal Study IELTS daily, remind at 8pm\nE.g.: /goal Exercise Mon/Wed/Fri, remind at 7am",
+        "ja": "使い方: /goal <説明>\n例: /goal 毎日IELTS勉強、夜8時リマインド\n例: /goal 月水金運動、朝7時リマインド",
     },
     "add_parse_fail": {
         "zh": "没有理解你的计划，请再描述一下？",
@@ -23,20 +23,20 @@ STRINGS: dict[str, dict[str, str]] = {
         "ja": "計画を理解できませんでした。もう一度説明してください。",
     },
     "add_duplicate": {
-        "zh": "已存在同名计划 [{tag}]，请换个描述或先 /planner_del 旧的。",
-        "en": "Plan [{tag}] already exists. Use a different name or /planner_del the old one first.",
-        "ja": "計画 [{tag}] は既に存在します。別の名前にするか、先に /planner_del で削除してください。",
+        "zh": "已存在同名计划 [{tag}]，请换个描述或先 /drop 旧的。",
+        "en": "Plan [{tag}] already exists. Use a different name or /drop the old one first.",
+        "ja": "計画 [{tag}] は既に存在します。別の名前にするか、先に /drop で削除してください。",
     },
     "add_success": {
-        "zh": "已创建计划「{name}」\n标签: {tag}\n频率: {schedule}\n提醒: {remind}\n\n用自然语言打卡: /planner_checkin 今天练了30分钟听力",
-        "en": "Plan \"{name}\" created\nTag: {tag}\nFrequency: {schedule}\nReminder: {remind}\n\nCheck in with: /planner_checkin practiced listening for 30 min",
-        "ja": "計画「{name}」を作成しました\nタグ: {tag}\n頻度: {schedule}\nリマインド: {remind}\n\n自然言語でチェックイン: /planner_checkin リスニング30分練習した",
+        "zh": "已创建计划「{name}」\n标签: {tag}\n频率: {schedule}\n提醒: {remind}\n\n用自然语言打卡: /checkin 今天练了30分钟听力",
+        "en": "Plan \"{name}\" created\nTag: {tag}\nFrequency: {schedule}\nReminder: {remind}\n\nCheck in with: /checkin practiced listening for 30 min",
+        "ja": "計画「{name}」を作成しました\nタグ: {tag}\n頻度: {schedule}\nリマインド: {remind}\n\n自然言語でチェックイン: /checkin リスニング30分練習した",
     },
-    # planner_del
+    # drop (del)
     "del_usage": {
-        "zh": "用法: /planner_del <计划名称或标签>",
-        "en": "Usage: /planner_del <plan name or tag>",
-        "ja": "使い方: /planner_del <計画名またはタグ>",
+        "zh": "用法: /drop <计划名称或标签>",
+        "en": "Usage: /drop <plan name or tag>",
+        "ja": "使い方: /drop <計画名またはタグ>",
     },
     "del_no_plans": {
         "zh": "你还没有任何计划。",
@@ -58,16 +58,16 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "No active plan found [{tag}]",
         "ja": "アクティブな計画 [{tag}] が見つかりません",
     },
-    # planner_checkin
+    # checkin
     "checkin_usage": {
-        "zh": "用法: /planner_checkin <描述>\n例如: /planner_checkin 今天练了半小时雅思听力\n例如: /planner_checkin 跑了5公里",
-        "en": "Usage: /planner_checkin <description>\nE.g.: /planner_checkin Practiced IELTS listening for 30 min\nE.g.: /planner_checkin Ran 5km",
-        "ja": "使い方: /planner_checkin <説明>\n例: /planner_checkin IELTSリスニング30分練習した\n例: /planner_checkin 5km走った",
+        "zh": "用法: /checkin <描述>\n例如: /checkin 今天练了半小时雅思听力\n例如: /checkin 跑了5公里",
+        "en": "Usage: /checkin <description>\nE.g.: /checkin Practiced IELTS listening for 30 min\nE.g.: /checkin Ran 5km",
+        "ja": "使い方: /checkin <説明>\n例: /checkin IELTSリスニング30分練習した\n例: /checkin 5km走った",
     },
     "checkin_no_plans": {
-        "zh": "你还没有计划。用 /planner_add 创建一个吧！",
-        "en": "You don't have any plans yet. Create one with /planner_add!",
-        "ja": "まだ計画がありません。/planner_add で作成しましょう！",
+        "zh": "你还没有计划。用 /goal 创建一个吧！",
+        "en": "You don't have any plans yet. Create one with /goal!",
+        "ja": "まだ計画がありません。/goal で作成しましょう！",
     },
     "checkin_no_match": {
         "zh": "没有匹配到计划。你的计划有：{names}\n请再描述一下？",
@@ -84,11 +84,11 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "\n{count} days checked in this week",
         "ja": "\n今週 {count} 日チェックイン済み",
     },
-    # planner_list
+    # goals (list)
     "list_empty": {
-        "zh": "还没有计划。用 /planner_add 创建一个吧！",
-        "en": "No plans yet. Create one with /planner_add!",
-        "ja": "まだ計画がありません。/planner_add で作成しましょう！",
+        "zh": "还没有计划。用 /goal 创建一个吧！",
+        "en": "No plans yet. Create one with /goal!",
+        "ja": "まだ計画がありません。/goal で作成しましょう！",
     },
     "list_header": {
         "zh": "📋 计划进度\n",
@@ -117,9 +117,9 @@ STRINGS: dict[str, dict[str, str]] = {
     },
     # scheduler.py reminder
     "reminder": {
-        "zh": "今天的「{name}」还没打卡哦，还在计划中吗？\n用 /planner_checkin {tag} <备注> 来打卡",
-        "en": "Haven't checked in for \"{name}\" today. Still on track?\nUse /planner_checkin {tag} <note> to check in",
-        "ja": "今日の「{name}」はまだチェックインしていません。\n/planner_checkin {tag} <メモ> でチェックイン",
+        "zh": "今天的「{name}」还没打卡哦，还在计划中吗？\n用 /checkin {tag} <备注> 来打卡",
+        "en": "Haven't checked in for \"{name}\" today. Still on track?\nUse /checkin {tag} <note> to check in",
+        "ja": "今日の「{name}」はまだチェックインしていません。\n/checkin {tag} <メモ> でチェックイン",
     },
     "minutes": {
         "zh": "{n}分钟",
@@ -128,4 +128,4 @@ STRINGS: dict[str, dict[str, str]] = {
     },
 }
 
-register("planner", STRINGS)
+register("track", STRINGS)

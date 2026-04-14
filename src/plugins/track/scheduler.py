@@ -6,7 +6,7 @@ from datetime import time
 
 from src.core.i18n import t
 
-import src.plugins.planner.locale  # noqa: F401
+import src.plugins.track.locale  # noqa: F401
 
 from .reminder import check_needs_reminder
 
@@ -55,7 +55,7 @@ async def _make_reminder_callback(ctx, plan: dict):
                 try:
                     await bot.send_message(
                         chat_id=user_id,
-                        text=t("planner.reminder", "zh", name=name, tag=tag),
+                        text=t("track.reminder", "zh", name=name, tag=tag),
                     )
                 except Exception:
                     logger.exception("Failed to send plan reminder to user %s", user_id)
@@ -66,7 +66,7 @@ async def _make_reminder_callback(ctx, plan: dict):
 async def register_plan_reminder(
     ctx, tag: str, name: str, schedule: str, remind_time_str: str,
 ) -> None:
-    """Register a single plan's daily reminder. Can be called at startup or after /planner_add."""
+    """Register a single plan's daily reminder. Can be called at startup or after /goal."""
     try:
         h, m = (int(x) for x in remind_time_str.split(":"))
     except ValueError:
