@@ -1,4 +1,4 @@
-"""Journal plugin command handlers."""
+"""Reflect plugin command handlers."""
 from __future__ import annotations
 
 import logging
@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from src.core.i18n import t
 from src.core.i18n.shared import category_label
 
-import src.plugins.journal.locale  # noqa: F401
+import src.plugins.reflect.locale  # noqa: F401
 
 if TYPE_CHECKING:
     from src.core.bot import Event
@@ -22,7 +22,7 @@ _sessions: dict[int, object] = {}
 
 
 def _get_ctx() -> "AppContext":
-    from src.plugins.journal import _plugin_ctx
+    from src.plugins.reflect import _plugin_ctx
     return _plugin_ctx
 
 
@@ -30,7 +30,7 @@ def _get_today(ctx: "AppContext") -> str:
     return datetime.now(ctx.tz).strftime("%Y-%m-%d")
 
 
-async def cmd_journal_start(event: "Event") -> str:
+async def cmd_reflect(event: "Event") -> str:
     from .db import JournalDB
     from .engine import JournalEngine
 
@@ -38,7 +38,7 @@ async def cmd_journal_start(event: "Event") -> str:
     user_id = event.user_id
 
     if user_id in _sessions:
-        return t("journal.already_in_session", event.lang)
+        return t("reflect.already_in_session", event.lang)
 
     journal_db = JournalDB(ctx.db)
     engine = JournalEngine(
@@ -52,63 +52,16 @@ async def cmd_journal_start(event: "Event") -> str:
     return await engine.start()
 
 
-async def cmd_journal_today(event: "Event") -> str:
-    from .db import JournalDB
-
-    ctx = _get_ctx()
-    lang = event.lang
-    today = _get_today(ctx)
-    journal_db = JournalDB(ctx.db)
-    entries = await journal_db.get_journal_entries(event.user_id, today)
-
-    if not entries:
-        return t("journal.today_empty", lang)
-
-    # Also fetch today's messages for a complete picture
-    raw_parts: list[str] = []
-    try:
-        cursor = await ctx.db.conn.execute(
-            "SELECT content, category, msg_type FROM messages "
-            "WHERE user_id = ? AND date(created_at) = ? AND deleted_at IS NULL "
-            "ORDER BY created_at",
-            (event.user_id, today),
-        )
-        messages = await cursor.fetchall()
-        for msg in messages:
-            raw_parts.append(f"[{msg['category'] or msg['msg_type']}] {(msg['content'] or '')[:200]}")
-    except Exception:
-        pass
-
-    for entry in entries:
-        label = category_label(entry["category"], lang)
-        raw_parts.append(f"[{label}] {entry['content']}")
-
-    raw_text = "\n".join(raw_parts)
-
-    # LLM polish: deduplicate, organize, format
-    polished = await ctx.llm.chat(
-        messages=[
-            {"role": "system", "content": t("journal.today_system_prompt", lang)},
-            {"role": "user", "content": raw_text},
-        ],
-        max_tokens=600,
-        lang=lang,
-    )
-
-    header = t("journal.today_header", lang, date=today)
-    return f"{header}\n{polished}"
-
-
-async def cmd_journal_cancel(event: "Event") -> str:
+async def cmd_cancel(event: "Event") -> str:
     user_id = event.user_id
     if user_id in _sessions:
         del _sessions[user_id]
-        return t("journal.cancelled", event.lang)
-    return t("journal.no_session", event.lang)
+        return t("reflect.cancelled", event.lang)
+    return t("reflect.no_session", event.lang)
 
 
-async def cmd_journal_review(event: "Event") -> str:
-    """Handle /journal_review [YYYY-MM-DD] — review journal from date to today."""
+async def cmd_review(event: "Event") -> str:
+    """Handle /review [YYYY-MM-DD] — review journal from date to today."""
     from .db import JournalDB
     from .summary import generate_summary
 
@@ -120,7 +73,7 @@ async def cmd_journal_review(event: "Event") -> str:
 
     if text:
         if not re.match(r"\d{4}-\d{2}-\d{2}$", text):
-            return t("journal.review_usage", lang)
+            return t("reflect.review_usage", lang)
         start_date = text
     else:
         start_date = (datetime.now(ctx.tz) - timedelta(days=6)).strftime("%Y-%m-%d")
@@ -138,7 +91,7 @@ async def cmd_journal_review(event: "Event") -> str:
     return f"📊 {start_date} ~ {today}\n\n{result}"
 
 
-async def journal_answer_handler(event: "Event") -> str | tuple[str, bool] | None:
+async def reflect_answer_handler(event: "Event") -> str | tuple[str, bool] | None:
     """Conversation state handler.
 
     Returns:
@@ -149,7 +102,7 @@ async def journal_answer_handler(event: "Event") -> str | tuple[str, bool] | Non
     user_id = event.user_id
     engine = _sessions.get(user_id)
     if engine is None:
-        return None  # Not in a journal session — pass through
+        return None  # Not in a reflect session — pass through
 
     text = event.text or ""
     response = await engine.answer(text)  # type: ignore[union-attr]

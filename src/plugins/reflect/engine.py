@@ -6,7 +6,7 @@ import logging
 from src.core.i18n import t
 from src.core.i18n.shared import category_label
 
-import src.plugins.journal.locale  # noqa: F401
+import src.plugins.reflect.locale  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -49,10 +49,10 @@ class JournalEngine:
     async def start(self) -> str:
         category = self.current_category
         if category is None:
-            return t("journal.flow_complete", self._lang)
+            return t("reflect.flow_complete", self._lang)
         system_msg = self._build_system_prompt()
         label = category_label(category, self._lang)
-        user_msg = t("journal.start_section", self._lang, label=label)
+        user_msg = t("reflect.start_section", self._lang, label=label)
         self._conversation = [
             {"role": "system", "content": system_msg},
             {"role": "user", "content": user_msg},
@@ -68,7 +68,7 @@ class JournalEngine:
     async def answer(self, text: str) -> str:
         category = self.current_category
         if category is None:
-            return t("journal.flow_complete", self._lang)
+            return t("reflect.flow_complete", self._lang)
         if text.strip().lower() in SKIP_KEYWORDS:
             self._step += 1
             return await self._next_or_finish()
@@ -87,7 +87,7 @@ class JournalEngine:
         category = self.current_category
         label = category_label(category, self._lang)  # type: ignore[arg-type]
         self._conversation.append(
-            {"role": "user", "content": t("journal.continue_section", self._lang, label=label)}
+            {"role": "user", "content": t("reflect.continue_section", self._lang, label=label)}
         )
         response = await self._llm.chat(messages=self._conversation[-6:], lang=self._lang)
         self._conversation.append({"role": "assistant", "content": response})
@@ -100,7 +100,7 @@ class JournalEngine:
     async def _generate_closing(self) -> str:
         entries = await self._db.get_journal_entries(self._user_id, self._date)
         if not entries:
-            return t("journal.closing_fallback", self._lang)
+            return t("reflect.closing_fallback", self._lang)
         entry_text = "\n".join(
             f"[{category_label(e['category'], self._lang)}] {e['content'][:150]}"
             for e in entries
@@ -109,22 +109,22 @@ class JournalEngine:
             messages=[
                 {
                     "role": "system",
-                    "content": t("journal.closing_system_prompt", self._lang),
+                    "content": t("reflect.closing_system_prompt", self._lang),
                 },
                 {"role": "user", "content": entry_text},
             ],
             max_tokens=300,
             lang=self._lang,
         )
-        header = t("journal.closing_header", self._lang)
-        footer = t("journal.closing_footer", self._lang)
+        header = t("reflect.closing_header", self._lang)
+        footer = t("reflect.closing_footer", self._lang)
         return header + response + footer
 
     def _build_system_prompt(self) -> str:
         context = ""
         if self._today_messages:
             msgs = self._today_messages[-10:]
-            context = t("journal.context_prefix", self._lang) + "\n".join(
+            context = t("reflect.context_prefix", self._lang) + "\n".join(
                 f"- {m[:100]}" for m in msgs
             )
-        return t("journal.system_prompt", self._lang) + context
+        return t("reflect.system_prompt", self._lang) + context

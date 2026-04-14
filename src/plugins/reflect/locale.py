@@ -1,4 +1,4 @@
-"""Journal plugin translations."""
+"""Reflect plugin translations."""
 from src.core.i18n import register
 
 STRINGS: dict[str, dict[str, str]] = {
@@ -7,15 +7,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "Daily four-part reflection",
         "ja": "曾国藩式・毎日四省の振り返り",
     },
-    "cmd.start": {
+    "cmd.reflect": {
         "zh": "开始今日反思",
         "en": "Start today's reflection",
         "ja": "今日の振り返りを開始",
-    },
-    "cmd.today": {
-        "zh": "查看今日日记",
-        "en": "View today's diary",
-        "ja": "今日の日記を見る",
     },
     "cmd.cancel": {
         "zh": "取消进行中的反思",
@@ -23,14 +18,14 @@ STRINGS: dict[str, dict[str, str]] = {
         "ja": "振り返りをキャンセル",
     },
     "cmd.review": {
-        "zh": "回顾日记 (用法: /journal_review [YYYY-MM-DD])",
-        "en": "Review journal (usage: /journal_review [YYYY-MM-DD])",
-        "ja": "日記を振り返る (使い方: /journal_review [YYYY-MM-DD])",
+        "zh": "回顾日记 (用法: /review [YYYY-MM-DD])",
+        "en": "Review journal (usage: /review [YYYY-MM-DD])",
+        "ja": "日記を振り返る (使い方: /review [YYYY-MM-DD])",
     },
     "review_usage": {
-        "zh": "用法: /journal_review [起始日期]\n例如: /journal_review 2026-04-01\n默认回顾最近 7 天。",
-        "en": "Usage: /journal_review [start date]\nE.g.: /journal_review 2026-04-01\nDefaults to last 7 days.",
-        "ja": "使い方: /journal_review [開始日]\n例: /journal_review 2026-04-01\nデフォルトは過去7日間。",
+        "zh": "用法: /review [起始日期]\n例如: /review 2026-04-01\n默认回顾最近 7 天。",
+        "en": "Usage: /review [start date]\nE.g.: /review 2026-04-01\nDefaults to last 7 days.",
+        "ja": "使い方: /review [開始日]\n例: /review 2026-04-01\nデフォルトは過去7日間。",
     },
     "today_system_prompt": {
         "zh": (
@@ -65,14 +60,14 @@ STRINGS: dict[str, dict[str, str]] = {
         ),
     },
     "already_in_session": {
-        "zh": "你已经有一个正在进行的反思。请继续回答，或发送 /journal_cancel 取消。",
-        "en": "You already have a reflection in progress. Continue answering, or send /journal_cancel to cancel.",
-        "ja": "振り返りが進行中です。回答を続けるか、/journal_cancel でキャンセルしてください。",
+        "zh": "你已经有一个正在进行的反思。请继续回答，或发送 /cancel 取消。",
+        "en": "You already have a reflection in progress. Continue answering, or send /cancel to cancel.",
+        "ja": "振り返りが進行中です。回答を続けるか、/cancel でキャンセルしてください。",
     },
     "today_empty": {
-        "zh": "今天还没有反思记录。发送 /journal_start 开始吧！",
-        "en": "No reflection today. Send /journal_start to begin!",
-        "ja": "今日の振り返りはまだありません。/journal_start で始めましょう！",
+        "zh": "今天还没有反思记录。发送 /reflect 开始吧！",
+        "en": "No reflection today. Send /reflect to begin!",
+        "ja": "今日の振り返りはまだありません。/reflect で始めましょう！",
     },
     "today_header": {
         "zh": "📝 今日反思 ({date}):\n",
@@ -80,9 +75,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "ja": "📝 今日の振り返り ({date}):\n",
     },
     "cancelled": {
-        "zh": "已取消当前反思。随时可以用 /journal_start 重新开始。",
-        "en": "Reflection cancelled. Use /journal_start anytime to restart.",
-        "ja": "振り返りをキャンセルしました。/journal_start でいつでも再開できます。",
+        "zh": "已取消当前反思。随时可以用 /reflect 重新开始。",
+        "en": "Reflection cancelled. Use /reflect anytime to restart.",
+        "ja": "振り返りをキャンセルしました。/reflect でいつでも再開できます。",
     },
     "no_session": {
         "zh": "没有进行中的反思。",
@@ -111,9 +106,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "ja": "📝 パート {step}/{total}：{label}\n\n",
     },
     "closing_fallback": {
-        "zh": "───── ✅ 今日反思完成 ─────\n\n今天的反思结束了。明天继续加油！\n\n📖 查看记录: /journal_today",
-        "en": "───── ✅ Reflection Complete ─────\n\nToday's reflection is done. Keep it up tomorrow!\n\n📖 View: /journal_today",
-        "ja": "───── ✅ 振り返り完了 ─────\n\n今日の振り返りは終わりです。明日も頑張りましょう！\n\n📖 表示: /journal_today",
+        "zh": "───── ✅ 今日反思完成 ─────\n\n今天的反思结束了。明天继续加油！",
+        "en": "───── ✅ Reflection Complete ─────\n\nToday's reflection is done. Keep it up tomorrow!",
+        "ja": "───── ✅ 振り返り完了 ─────\n\n今日の振り返りは終わりです。明日も頑張りましょう！",
     },
     "closing_header": {
         "zh": "───── ✅ 今日反思完成 ─────\n\n",
@@ -121,9 +116,9 @@ STRINGS: dict[str, dict[str, str]] = {
         "ja": "───── ✅ 振り返り完了 ─────\n\n",
     },
     "closing_footer": {
-        "zh": "\n\n📖 查看完整记录: /journal_today",
-        "en": "\n\n📖 View full record: /journal_today",
-        "ja": "\n\n📖 全記録を表示: /journal_today",
+        "zh": "\n\n📖 查看完整记录: /review",
+        "en": "\n\n📖 View full record: /review",
+        "ja": "\n\n📖 全記録を表示: /review",
     },
     "closing_system_prompt": {
         "zh": "你是 DailyClaw。用户刚完成今日四省反思。请用 2-3 句温暖的话总结今天，给出一句鼓励。用中文，简洁。不要输出标题或分隔线。",
@@ -157,9 +152,9 @@ STRINGS: dict[str, dict[str, str]] = {
     },
     # scheduler.py
     "evening_reminder": {
-        "zh": "今天过得怎么样？用 /journal_start 开始今日反思吧。",
-        "en": "How was your day? Start today's reflection with /journal_start.",
-        "ja": "今日はどうでしたか？ /journal_start で今日の振り返りを始めましょう。",
+        "zh": "今天过得怎么样？用 /reflect 开始今日反思吧。",
+        "en": "How was your day? Start today's reflection with /reflect.",
+        "ja": "今日はどうでしたか？ /reflect で今日の振り返りを始めましょう。",
     },
     "weekly_summary_header": {
         "zh": "本周总结\n\n{content}",
@@ -168,9 +163,9 @@ STRINGS: dict[str, dict[str, str]] = {
     },
     # summary.py
     "no_entries": {
-        "zh": "{period}没有记录。开始用 /journal_start 记录每天的反思吧！",
-        "en": "No entries for {period}. Start recording daily reflections with /journal_start!",
-        "ja": "{period}の記録がありません。/journal_start で毎日の振り返りを始めましょう！",
+        "zh": "{period}没有记录。开始用 /reflect 记录每天的反思吧！",
+        "en": "No entries for {period}. Start recording daily reflections with /reflect!",
+        "ja": "{period}の記録がありません。/reflect で毎日の振り返りを始めましょう！",
     },
     "summary_system_prompt": {
         "zh": (
@@ -212,16 +207,16 @@ STRINGS: dict[str, dict[str, str]] = {
         "en": "Date range: {start} ~ {end}\n\nJournal entries:\n{entries}",
         "ja": "期間：{start} ~ {end}\n\n日記エントリ：\n{entries}",
     },
-    # auto-journal (scheduler)
+    # auto-reflect (scheduler)
     "auto_journal_notify": {
         "zh": "🌙 今天还没有写反思日记，正在根据你今天的 {count} 条记录自动生成...",
         "en": "🌙 No reflection today — auto-generating journal from your {count} records...",
         "ja": "🌙 今日の振り返りがまだです。{count} 件の記録から自動生成しています...",
     },
     "auto_journal_done": {
-        "zh": "📝 已自动生成今日日记：\n\n{content}\n\n查看: /journal_today",
-        "en": "📝 Auto-generated today's journal:\n\n{content}\n\nView: /journal_today",
-        "ja": "📝 今日の日記を自動生成しました：\n\n{content}\n\n表示: /journal_today",
+        "zh": "📝 已自动生成今日日记：\n\n{content}",
+        "en": "📝 Auto-generated today's journal:\n\n{content}",
+        "ja": "📝 今日の日記を自動生成しました：\n\n{content}",
     },
     "auto_journal_system_prompt": {
         "zh": (
@@ -250,4 +245,4 @@ STRINGS: dict[str, dict[str, str]] = {
     },
 }
 
-register("journal", STRINGS)
+register("reflect", STRINGS)

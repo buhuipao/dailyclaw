@@ -6,7 +6,7 @@ import logging
 from src.core.i18n import t
 from src.core.i18n.shared import category_label, period_label
 
-import src.plugins.journal.locale  # noqa: F401
+import src.plugins.reflect.locale  # noqa: F401
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +29,7 @@ async def generate_summary(
     )
 
     if not entries:
-        return t("journal.no_entries", lang, period=period_lbl)
+        return t("reflect.no_entries", lang, period=period_lbl)
 
     entry_text = "\n".join(
         f"- {e['date']} [{category_label(e['category'], lang)}] {e['content'][:120]}"
@@ -40,11 +40,11 @@ async def generate_summary(
         messages=[
             {
                 "role": "system",
-                "content": t("journal.summary_system_prompt", lang, period=period_lbl),
+                "content": t("reflect.summary_system_prompt", lang, period=period_lbl),
             },
             {
                 "role": "user",
-                "content": t("journal.summary_user_prompt", lang, start=start_date, end=end_date, entries=entry_text),
+                "content": t("reflect.summary_user_prompt", lang, start=start_date, end=end_date, entries=entry_text),
             },
         ],
         max_tokens=500,

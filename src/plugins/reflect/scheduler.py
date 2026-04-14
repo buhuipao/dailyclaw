@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any
 from src.core.i18n import t
 from src.core.i18n.shared import category_label
 
-import src.plugins.journal.locale  # noqa: F401
+import src.plugins.reflect.locale  # noqa: F401
 
 if TYPE_CHECKING:
     from src.core.context import AppContext
@@ -58,7 +58,7 @@ async def _evening_journal_callback(ctx: "AppContext", data: Any = None) -> None
             lang = _get_user_lang(ctx, user_id)
             await ctx.bot.send_message(
                 chat_id=user_id,
-                text=t("journal.evening_reminder", lang),
+                text=t("reflect.evening_reminder", lang),
             )
         except Exception:
             logger.exception("Failed to send journal reminder to user %s", user_id)
@@ -114,7 +114,7 @@ async def _auto_journal_for_user(
     # 3. Notify user that auto-journal is starting
     await ctx.bot.send_message(
         chat_id=user_id,
-        text=t("journal.auto_journal_notify", lang, count=msg_count),
+        text=t("reflect.auto_journal_notify", lang, count=msg_count),
     )
 
     # 4. Build message summary for LLM
@@ -124,8 +124,8 @@ async def _auto_journal_for_user(
     )
 
     system_prompt = (
-        t("journal.auto_journal_system_prompt", lang)
-        + t("journal.auto_journal_format", lang)
+        t("reflect.auto_journal_system_prompt", lang)
+        + t("reflect.auto_journal_format", lang)
     )
 
     raw = await ctx.llm.chat(
@@ -163,7 +163,7 @@ async def _auto_journal_for_user(
     summary_text = "\n".join(saved_labels)
     await ctx.bot.send_message(
         chat_id=user_id,
-        text=t("journal.auto_journal_done", lang, content=summary_text),
+        text=t("reflect.auto_journal_done", lang, content=summary_text),
     )
     logger.info("[auto-journal] generated %d entries for user %d", len(saved_labels), user_id)
 
@@ -197,7 +197,7 @@ async def _weekly_summary_callback(ctx: "AppContext", data: Any = None) -> None:
             )
             await ctx.bot.send_message(
                 chat_id=user_id,
-                text=t("journal.weekly_summary_header", lang, content=result),
+                text=t("reflect.weekly_summary_header", lang, content=result),
             )
         except Exception:
             logger.exception("Failed to send weekly summary to user %s", user_id)
@@ -208,7 +208,7 @@ async def _weekly_summary_callback(ctx: "AppContext", data: Any = None) -> None:
 # ---------------------------------------------------------------------------
 
 
-async def setup_journal_schedules(ctx: "AppContext") -> None:
+async def setup_reflect_schedules(ctx: "AppContext") -> None:
     """Register evening prompt, auto-journal, and weekly summary jobs."""
     hour = ctx.config.get("remind_hour", 21)
     minute = ctx.config.get("remind_minute", 0)
@@ -218,27 +218,27 @@ async def setup_journal_schedules(ctx: "AppContext") -> None:
     await ctx.scheduler.run_daily(
         callback=lambda data=None: _evening_journal_callback(ctx, data),
         time=prompt_time,
-        name="journal_evening_prompt",
+        name="reflect_evening_prompt",
     )
-    logger.info("Scheduled journal evening prompt at %02d:%02d", hour, minute)
+    logger.info("Scheduled reflect evening prompt at %02d:%02d", hour, minute)
 
-    # Auto-journal — generate from messages if no journal written
+    # Auto-reflect — generate from messages if no journal written
     auto_hour = ctx.config.get("auto_journal_hour", 22)
     auto_minute = ctx.config.get("auto_journal_minute", 30)
     auto_time = time(hour=auto_hour, minute=auto_minute, tzinfo=ctx.tz)
     await ctx.scheduler.run_daily(
         callback=lambda data=None: _auto_journal_callback(ctx, data),
         time=auto_time,
-        name="journal_auto_generate",
+        name="reflect_auto_generate",
     )
-    logger.info("Scheduled auto-journal at %02d:%02d", auto_hour, auto_minute)
+    logger.info("Scheduled auto-reflect at %02d:%02d", auto_hour, auto_minute)
 
     # Weekly summary on Sunday 22:00
     summary_time = time(hour=22, minute=0, tzinfo=ctx.tz)
     await ctx.scheduler.run_daily(
         callback=lambda data=None: _weekly_summary_callback(ctx, data),
         time=summary_time,
-        name="journal_weekly_summary",
+        name="reflect_weekly_summary",
         days=(0,),  # Sunday (ptb v20+: 0=Sun, 6=Sat)
     )
-    logger.info("Scheduled journal weekly summary for Sunday 22:00")
+    logger.info("Scheduled reflect weekly summary for Sunday 22:00")
