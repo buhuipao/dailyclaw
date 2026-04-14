@@ -69,7 +69,7 @@ async def _retry_one(db: object, llm: object, bot: object, msg: dict) -> None:
     elif msg_type in ("photo", "voice", "video"):
         # Media: file URL may have expired, save placeholder
         from .handlers import _insert_message
-        type_label = t(f"recorder.retry_type.{msg_type}", "zh")
+        type_label = t(f"memo.retry_type.{msg_type}", "zh")
         content = payload.get("caption") or payload.get("text") or t("memo.retry_backfill", "zh", type=type_label)
         metadata = json.dumps(payload, ensure_ascii=False)
         row_id = await _insert_message(db, msg["user_id"], msg_type, content, None, metadata)

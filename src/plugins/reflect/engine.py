@@ -60,7 +60,7 @@ class JournalEngine:
         response = await self._llm.chat(messages=self._conversation, lang=self._lang)
         self._conversation.append({"role": "assistant", "content": response})
         step_header = t(
-            "journal.step_indicator", self._lang,
+            "reflect.step_indicator", self._lang,
             step=self._step + 1, total=len(JOURNAL_FLOW), label=label,
         )
         return step_header + response
@@ -92,7 +92,7 @@ class JournalEngine:
         response = await self._llm.chat(messages=self._conversation[-6:], lang=self._lang)
         self._conversation.append({"role": "assistant", "content": response})
         step_header = t(
-            "journal.step_indicator", self._lang,
+            "reflect.step_indicator", self._lang,
             step=self._step + 1, total=len(JOURNAL_FLOW), label=label,
         )
         return step_header + response
