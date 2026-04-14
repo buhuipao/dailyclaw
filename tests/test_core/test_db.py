@@ -240,3 +240,57 @@ async def test_migration_runner_nonexistent_dir_is_noop(tmp_path, runner, db):
     )
     row = await cursor.fetchone()
     assert row["cnt"] == 0
+
+
+# ---------------------------------------------------------------------------
+# Core migration 004 — rename plugin entries
+# ---------------------------------------------------------------------------
+
+from pathlib import Path
+
+_SRC_ROOT = Path(__file__).parent.parent.parent / "src"
+_CORE_MIGRATIONS = str(_SRC_ROOT / "core" / "migrations")
+
+
+@pytest.mark.asyncio
+async def test_004_rename_plugins_migration(tmp_path):
+    """Migration 004 renames recorder→memo, journal→reflect, planner→track."""
+    db_path = str(tmp_path / "rename_test.db")
+    database = Database(db_path=db_path)
+    await database.connect()
+
+    try:
+        # Seed old plugin names into schema_versions as if they were applied
+        # before the rename (version 1 each so they look like real prior state).
+        old_names = ("recorder", "journal", "planner")
+        for name in old_names:
+            await database.conn.execute(
+                "INSERT INTO schema_versions (plugin_name, version, filename) VALUES (?, ?, ?)",
+                (name, 1, f"001_initial.sql"),
+            )
+        await database.conn.commit()
+
+        # Run core migrations — migration 004 should rename the seeded entries.
+        runner = MigrationRunner(database)
+        await runner.run("core", _CORE_MIGRATIONS)
+
+        # Assert new names exist.
+        cursor = await database.conn.execute(
+            "SELECT plugin_name FROM schema_versions WHERE plugin_name IN ('memo', 'reflect', 'track')"
+        )
+        new_rows = await cursor.fetchall()
+        new_names = {row["plugin_name"] for row in new_rows}
+        assert new_names == {"memo", "reflect", "track"}, (
+            f"Expected renamed entries to exist, got: {new_names}"
+        )
+
+        # Assert old names are gone.
+        cursor = await database.conn.execute(
+            "SELECT plugin_name FROM schema_versions WHERE plugin_name IN ('recorder', 'journal', 'planner')"
+        )
+        old_rows = await cursor.fetchall()
+        assert len(old_rows) == 0, (
+            f"Old plugin names should be gone, but found: {[r['plugin_name'] for r in old_rows]}"
+        )
+    finally:
+        await database.close()
