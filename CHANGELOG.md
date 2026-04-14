@@ -7,6 +7,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Wiki plugin** -- personal knowledge wiki with LLM-powered synthesis
+  - `/ask <question>` -- query your knowledge base conversationally
+  - `/topics` -- browse wiki topic index
+  - `/topic <name>` -- read a specific topic page
+  - `/digest` -- generate weekly insight on demand
+  - Daily auto-ingest at 22:30 (configurable) -- processes memos, reflections, and check-ins into wiki pages
+  - Weekly digest on Sundays at 21:00 -- recurring themes, connections, progress, suggestions
+  - Real-time nudges when new memos connect to existing topics (threshold 0.85, max 3/day)
+  - Monthly lint health check -- detects contradictions, stale pages, orphans, merge candidates
+  - Seed topics configurable in config.yaml
+  - `wiki_ask` intent for natural language questions via intent router
+
+### Changed
+- **Renamed plugins**: recorder -> memo, journal -> reflect, planner -> track
+- **Shorter commands**: `/today`, `/heatmap`, `/del`, `/reflect`, `/review`, `/goal`, `/checkin`, `/goals`, `/drop`
+- `/review` now queries wiki for richer context (falls back to legacy summarization)
+- `AppContext` gains optional `wiki_nudge` hook for cross-plugin nudge wiring
+- Core migration 004 renames schema_versions entries for renamed plugins
+
+### Previous: Intent Router
+
 - **Intent Router** -- LLM-powered natural language routing to plugins, similar to function calling
   - Users can send plain messages instead of `/commands`; the LLM determines which plugin to invoke
   - Each plugin declares intents with `get_intents()` and per-user context with `get_intent_context()`
