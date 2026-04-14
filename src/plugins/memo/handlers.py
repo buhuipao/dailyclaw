@@ -87,22 +87,31 @@ def _make_text_handler(ctx: object):
             if summary and summary != text[:50]:
                 reply += f"\n📝 {summary}"
             reply += t("memo.delete_hint", event.lang, id=row_id)
-            return reply
-
-        row_id = await _insert_message(db, user_id, msg_type, text, category, metadata)
-        if row_id is None:
-            return t("memo.dedup_skip", event.lang)
-
-        cat_label = category_label(category, event.lang)
-        summary = classification.get("summary", "")
-        reply = t("memo.text_recorded", event.lang, cat=cat_label, id=row_id)
-        if summary and summary != text[:50]:
-            reply += f"\n📝 {summary}"
-        if url_summary:
-            reply += t("memo.url_summary_label", event.lang, summary=url_summary)
         else:
-            reply += t("memo.text_more_prompt", event.lang)
-        reply += t("memo.delete_hint", event.lang, id=row_id)
+            row_id = await _insert_message(db, user_id, msg_type, text, category, metadata)
+            if row_id is None:
+                return t("memo.dedup_skip", event.lang)
+
+            cat_label = category_label(category, event.lang)
+            summary = classification.get("summary", "")
+            reply = t("memo.text_recorded", event.lang, cat=cat_label, id=row_id)
+            if summary and summary != text[:50]:
+                reply += f"\n📝 {summary}"
+            if url_summary:
+                reply += t("memo.url_summary_label", event.lang, summary=url_summary)
+            else:
+                reply += t("memo.text_more_prompt", event.lang)
+            reply += t("memo.delete_hint", event.lang, id=row_id)
+
+        # Wiki nudge check (runs only if wiki plugin loaded)
+        if ctx.wiki_nudge and row_id is not None:
+            try:
+                nudge_text = await ctx.wiki_nudge(user_id, text, event.lang)
+                if nudge_text:
+                    reply += f"\n\n{nudge_text}"
+            except Exception:
+                logger.debug("[nudge] check failed", exc_info=True)
+
         return reply
 
     return handle_text

@@ -377,6 +377,41 @@ async def _run(config: dict, tz: ZoneInfo) -> None:
     plugins = await registry.discover(_PLUGINS_DIR)
     logger.info("Loaded %d plugin(s)", len(plugins))
 
+    # Wire wiki nudge hook if wiki plugin is loaded
+    wiki_plugin = next((p for p in plugins if p.name == "wiki"), None)
+    if wiki_plugin:
+        from src.plugins.wiki.db import WikiDB
+        from src.plugins.wiki.nudge import check_nudge
+
+        wiki_config = config.get("plugins", {}).get("wiki", {})
+        nudge_enabled = wiki_config.get("nudge_enabled", True)
+        nudge_threshold = wiki_config.get("nudge_threshold", 0.85)
+        nudge_max = wiki_config.get("nudge_max_per_day", 3)
+
+        if nudge_enabled:
+            async def _wiki_nudge(user_id: int, content: str, lang: str) -> str | None:
+                wiki_db = WikiDB(db)
+                return await check_nudge(
+                    llm, wiki_db, user_id, content, lang,
+                    threshold=nudge_threshold, max_per_day=nudge_max,
+                )
+
+            # Rebuild memo plugin's AppContext with the nudge hook
+            for plugin in plugins:
+                if plugin.name == "memo":
+                    from src.core.context import AppContext as _AC
+                    plugin.ctx = _AC(
+                        db=plugin.ctx.db,
+                        llm=plugin.ctx.llm,
+                        bot=plugin.ctx.bot,
+                        scheduler=plugin.ctx.scheduler,
+                        config=plugin.ctx.config,
+                        tz=plugin.ctx.tz,
+                        wiki_nudge=_wiki_nudge,
+                    )
+                    break
+            logger.info("Wiki nudge hook wired to memo plugin")
+
     # 7. Register plugin commands/handlers/conversations
     #    For TEXT handlers, intercept and wrap with IntentRouter so that
     #    natural language is routed to the right plugin before falling

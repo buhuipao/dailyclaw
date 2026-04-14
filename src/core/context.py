@@ -1,7 +1,8 @@
 """Application context injected into every plugin."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Awaitable, Callable
+from dataclasses import dataclass, field
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -14,3 +15,4 @@ class AppContext:
     scheduler: Any  # Scheduler or test fake
     config: dict[str, Any]
     tz: ZoneInfo
+    wiki_nudge: Callable[[int, str, str], Awaitable[str | None]] | None = field(default=None)
