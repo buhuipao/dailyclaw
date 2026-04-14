@@ -83,9 +83,10 @@ def _build_llm_service(llm_config: dict) -> LLMService:
 
 
 _PLUGIN_EMOJI: dict[str, str] = {
-    "journal": "🌙",
-    "planner": "📊",
-    "recorder": "📝",
+    "reflect": "🌙",
+    "track": "📊",
+    "memo": "📝",
+    "wiki": "🧠",
 }
 
 
